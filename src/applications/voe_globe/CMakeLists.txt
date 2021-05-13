@@ -2,9 +2,11 @@ set(SOURCES
     TileReaderVOE.h
     TileReaderVOE.cpp
     vsgpagedlod.cpp
+    VoeLOD.cpp
+    VoeLOD.h
 )
 
-SET(TARGET_SRC vsgpagedlod.cpp TileReaderVOE.cpp TileReaderVOE.h)
+SET(TARGET_SRC vsgpagedlod.cpp TileReaderVOE.cpp TileReaderVOE.h VoeLOD.cpp VoeLOD.h)
 
 INCLUDE_DIRECTORIES(${OSG_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIR})
 

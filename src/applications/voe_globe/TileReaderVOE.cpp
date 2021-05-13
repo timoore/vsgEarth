@@ -1,8 +1,11 @@
 #include "TileReaderVOE.h"
 #include "ImageUtils.h"
+#include "VoeLOD.h"
 
 #include <osgEarth/Notify>
 #include <stdexcept>
+
+using namespace voe;
 
 osg::ArgumentParser convertArgs(vsg::CommandLine& commandLine)
 {
@@ -60,10 +63,10 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
             auto& bb = computeBound.bounds;
             vsg::dsphere bound((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, (bb.min.z + bb.max.z) * 0.5, vsg::length(bb.max - bb.min) * 0.5);
 
-            auto plod = vsg::PagedLOD::create();
+            auto plod = VoeLOD::create();
             plod->setBound(bound);
-            plod->setChild(0, vsg::PagedLOD::Child{0.25, {}});  // external child visible when it's bound occupies more than 1/4 of the height of the window
-            plod->setChild(1, vsg::PagedLOD::Child{0.0, tile}); // visible always
+            plod->setChild(0, VoeLOD::Child{0.25, {}});  // external child visible when it's bound occupies more than 1/4 of the height of the window
+            plod->setChild(1, VoeLOD::Child{0.0, tile}); // visible always
             plod->filename = vsg::make_string(key.str(), ".tile");
             plod->options = options;
 
@@ -121,7 +124,8 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
     for (int i = 0; i < 4; ++i)
     {
         auto childKey = key.createChildKey(i);
-        if (auto childTile = createTile(childKey, options))
+        auto childTile = createTile(childKey, options);
+        if (childTile && getTileStatus(childTile) != NoSuchTile)
         {
             childTile->setValue("tileName", childKey.str());
             childTiles.push_back(childTile);
@@ -141,10 +145,10 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
 
             if (local_lod < maxLevel)
             {
-                auto plod = vsg::PagedLOD::create();
+                auto plod = VoeLOD::create();
                 plod->setBound(bound);
-                plod->setChild(0, vsg::PagedLOD::Child{lodTransitionScreenHeightRatio, {}}); // external child visible when it's bound occupies more than 1/4 of the height of the window
-                plod->setChild(1, vsg::PagedLOD::Child{0.0, tile});                          // visible always
+                plod->setChild(0, VoeLOD::Child{lodTransitionScreenHeightRatio, {}}); // external child visible when it's bound occupies more than 1/4 of the height of the window
+                plod->setChild(1, VoeLOD::Child{0.0, tile});                          // visible always
                 std::string tileName;
                 tile->getValue("tileName", tileName);
                 plod->filename = vsg::make_string(tileName, ".tile");
@@ -180,6 +184,7 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
     if (group->getNumChildren() != 4)
     {
         OE_DEBUG << "Warning: could not load all 4 subtiles, loaded only " << group->getNumChildren() << std::endl;
+        setTileStatus(group, NoSuchTile);
     }
 
     return group;
@@ -282,9 +287,13 @@ vsg::ref_ptr<vsg::Node>
 TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
 {
     osgEarth::GeoImage gimage = imageLayer->createImage(key);
+    // create StateGroup to bind any texture state
+    auto scenegraph = vsg::StateGroup::create();
+
     if (!gimage.valid())
     {
-        return {};
+        setTileStatus(scenegraph, NoSuchTile);
+        return scenegraph;
     }
     auto data = osg2vsg::convertToVsg(gimage.getImage(), true);
     const osgEarth::GeoExtent& extent = gimage.getExtent();
@@ -297,9 +306,6 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
 
     auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
     auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
-
-        // create StateGroup to bind any texture state
-    auto scenegraph = vsg::StateGroup::create();
     scenegraph->add(bindDescriptorSets);
 
     // set up model transformation node
@@ -379,6 +385,6 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
 
     // add drawCommands to transform
     transform->addChild(drawCommands);
-
+    setTileStatus(scenegraph, Valid);
     return scenegraph;
 }
