@@ -31,7 +31,8 @@ public:
     mutable std::mutex statsMutex;
     mutable uint64_t numTilesRead{0};
     mutable double totalTimeReadingTiles{0.0};
-
+    bool getReverseDepth() const { return reverseDepth; }
+    void setReverseDepth(bool val) { reverseDepth = val; }
 protected:
     vsg::ref_ptr<vsg::Object> read_root(vsg::ref_ptr<const vsg::Options> options = {}) const;
 vsg::ref_ptr<vsg::Object> read_subtile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options = {}) const;
@@ -43,4 +44,5 @@ vsg::ref_ptr<vsg::Object> read_subtile(const osgEarth::TileKey& key, vsg::ref_pt
     vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout;
     vsg::ref_ptr<vsg::Sampler> sampler;
     osg::ref_ptr<osgEarth::ImageLayer> imageLayer;
+    bool reverseDepth = false;
 };

@@ -31,6 +31,7 @@ int main(int argc, char** argv)
 
         arguments.read(options);
 
+        bool reverseDepth = false;
         auto windowTraits = vsg::WindowTraits::create();
         windowTraits->windowTitle = "vsgpagedlod";
         windowTraits->debugLayer = arguments.read({"--debug", "-d"});
@@ -38,6 +39,8 @@ int main(int argc, char** argv)
         if (arguments.read("--IMMEDIATE")) windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         if (arguments.read({"--fullscreen", "--fs"})) windowTraits->fullscreen = true;
         if (arguments.read({"--window", "-w"}, windowTraits->width, windowTraits->height)) { windowTraits->fullscreen = false; }
+        if (arguments.read({"--reversedepth", "-rd"}))
+            reverseDepth = true;
         arguments.read("--screen", windowTraits->screenNum);
         arguments.read("--display", windowTraits->display);
         arguments.read("--samples", windowTraits->samples);
@@ -68,6 +71,12 @@ int main(int argc, char** argv)
 
         // initial the state that will be shared between tiles.
         tileReader->init(arguments);
+
+        if (reverseDepth)
+        {
+            windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
+            tileReader->setReverseDepth(true);
+        }
 
         // load the root tile.
         auto vsg_scene = vsg::read_cast<vsg::Node>("root.tile", options);
@@ -184,6 +193,16 @@ int main(int argc, char** argv)
         }
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
+        if (reverseDepth)
+        {
+            vsg::Node* cgChild = commandGraph->getChild(0);
+            vsg::RenderGraph* renderGraph = dynamic_cast<vsg::RenderGraph*>(cgChild);
+            if (renderGraph)
+            {
+                renderGraph->clearValues.back().depthStencil = VkClearDepthStencilValue{0.0f, 0};
+            }
+        }
+
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         viewer->compile();

@@ -245,7 +245,7 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
 
     // load shaders
-    vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("shaders/vert_PushConstants.spv", searchPaths));
+        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("reverse_depth_vert.spv", searchPaths));
     vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
     if (!vertexShader || !fragmentShader)
     {
@@ -265,13 +265,22 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
         VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0},    // tex coord data
     };
 
+    auto depthStencilState = vsg::DepthStencilState::create();
+    if (getReverseDepth())
+    {
+        vsg::ShaderStage::SpecializationConstants specializationConstants{
+        {0, vsg::uintValue::create(1)}
+        };
+        vertexShader->specializationConstants = specializationConstants;
+        depthStencilState->depthCompareOp = VK_COMPARE_OP_GREATER;
+    }
     vsg::GraphicsPipelineStates pipelineStates{
         vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
         vsg::InputAssemblyState::create(),
         vsg::RasterizationState::create(),
         vsg::MultisampleState::create(),
         vsg::ColorBlendState::create(),
-        vsg::DepthStencilState::create()};
+        depthStencilState};
 
     auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
     auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
