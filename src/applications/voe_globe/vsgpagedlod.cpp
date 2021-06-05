@@ -11,6 +11,8 @@
 
 #include "TileReaderVOE.h"
 
+using namespace voe;
+
 int main(int argc, char** argv)
 {
     try
@@ -215,6 +217,15 @@ int main(int argc, char** argv)
 
             viewer->update();
 
+            vsg::dmat4 viewMatrix;
+            camera->getViewMatrix()->get(viewMatrix);
+            vsg::dvec3 dLightDirectionEye = viewMatrix * tileReader->simState.worldDirection;
+            vsg::vec3 lightDirectionEye(dLightDirectionEye);
+            tileReader->simState.setDirection(lightDirectionEye);
+
+            viewer->waitForFences(1, 50000000);
+            tileReader->simState.lightValues->copyDataListToBuffers();
+            
             viewer->recordAndSubmit();
 
             viewer->present();

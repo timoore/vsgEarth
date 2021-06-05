@@ -221,14 +221,28 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
     vsg::DescriptorSetLayoutBindings descriptorBindings{
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
     };
-
-    descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+    vsg::DescriptorSetLayoutBindings elevationDescriptorBindings{
+        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
+    };
+    if (!getElevations())
+    {
+        descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);        
+    }
+    else
+    {
+        descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
+    }
 
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };
 
-    pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout}, pushConstantRanges);
+    pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
+                                                                           simState.light_descriptorSetLayout},
+        pushConstantRanges);
 
     sampler = vsg::Sampler::create();
     sampler->maxLod = mipmapLevelsHint;
@@ -237,6 +251,19 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
     sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     sampler->anisotropyEnable = VK_TRUE;
     sampler->maxAnisotropy = 16.0f;
+
+    elevationSampler = vsg::Sampler::create();
+    elevationSampler->maxLod = mipmapLevelsHint;
+    elevationSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    elevationSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    elevationSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+    normalSampler = vsg::Sampler::create();
+    normalSampler->maxLod = mipmapLevelsHint;
+    normalSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    normalSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    normalSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    
 }
 
 vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
@@ -256,13 +283,15 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     vsg::VertexInputState::Bindings vertexBindingsDescriptions{
         VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
         VkVertexInputBindingDescription{1, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // colour data
-        VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX}  // tex coord data
+        VkVertexInputBindingDescription{2, sizeof(vsg::vec2), VK_VERTEX_INPUT_RATE_VERTEX},  // tex coord data
+        VkVertexInputBindingDescription{3, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}  // normals
     };
 
     vsg::VertexInputState::Attributes vertexAttributeDescriptions{
         VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
         VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}, // colour data
         VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R32G32_SFLOAT, 0},    // tex coord data
+        VkVertexInputAttributeDescription{3, 3, VK_FORMAT_R32G32B32_SFLOAT, 0} // vertex data
     };
 
     auto depthStencilState = vsg::DepthStencilState::create();
@@ -286,8 +315,12 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
 
     auto root = vsg::StateGroup::create();
+    auto lightDescriptorSet = vsg::DescriptorSet::create(simState.light_descriptorSetLayout,
+                                                         vsg::Descriptors{simState.lightValues});
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
+        bindDescriptorSet->setSlot(2);
     root->add(bindGraphicsPipeline);
-
+    root->add(bindDescriptorSet);
     return root;
 }
 
@@ -296,6 +329,7 @@ vsg::ref_ptr<vsg::Node>
 TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
 {
     osgEarth::GeoImage gimage = imageLayer->createImage(key);
+    osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;
     // create StateGroup to bind any texture state
     auto scenegraph = vsg::StateGroup::create();
 
@@ -304,6 +338,8 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
         setTileStatus(scenegraph, NoSuchTile);
         return scenegraph;
     }
+    bool elevResult = mapNode->getMap()->getElevationPool()->getTile(key, false, elevationTexture,
+                                                                     nullptr, nullptr);
     auto data = osg2vsg::convertToVsg(gimage.getImage(), true);
     const osgEarth::GeoExtent& extent = gimage.getExtent();
     osgEarth::GeoPoint centroid = extent.getCentroid();
@@ -313,7 +349,30 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
         // create texture image and associated DescriptorSets and binding
     auto texture = vsg::DescriptorImage::create(sampler, data, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-    auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
+    vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
+    if (elevations)
+    {
+        auto elevData = osg2vsg::convertToVsg(elevationTexture->getImage());
+        auto normalData = osg2vsg::convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
+        auto elevationTexture = vsg::DescriptorImage::create(elevationSampler, elevData, 0, 0,
+                                                             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        auto normalTexture = vsg::DescriptorImage::create(normalSampler, normalData, 0, 0,
+                                                          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        auto tileParams = TileParamsValue::create();
+        // From engine_rex/TerrainCuller.cpp
+        float bias = .5;
+        float tileWidth = static_cast<float>(elevData->width());
+        tileParams->value().elevTexelCoeff.set((tileWidth - (2.0*bias)) / tileWidth, bias / tileWidth);
+        // matrices are identity.
+        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams );
+        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout,
+                                                   vsg::Descriptors{texture, elevationTexture,
+                                                       normalTexture, tileParamsBuffer});
+    }
+    else
+    {
+        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
+    }
     auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
     scenegraph->add(bindDescriptorSets);
 
@@ -349,23 +408,31 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
     auto vertices = vsg::vec3Array::create(numVertices);
     auto colors = vsg::vec3Array::create(numVertices);
     auto texcoords = vsg::vec2Array::create(numVertices);
+    auto ellipsoidNormals = vsg::vec3Array::create(numVertices);
     for (uint32_t r = 0; r < numRows; ++r)
     {
         for (uint32_t c = 0; c < numCols; ++c)
         {
-            vsg::dvec3 latitudeLongitudeAltitude
+            vsg::dvec3 lla
                 = computeLatitudeLongitudeAltitude(latitudeOrigin + double(r) * latitudeScale,
                                                    longitudeOrigin + double(c) * longitudeScale,
                                                    0.0);
+            const float latitude = vsg::radians(lla[0]);
+            const float longitude = vsg::radians(lla[1]);
 
-            auto ecef = ellipsoidModel->convertLatLongAltitudeToECEF(latitudeLongitudeAltitude);
+            auto ecef = ellipsoidModel->convertLatLongAltitudeToECEF(lla);
             vsg::vec3 vertex(worldToLocal * ecef);
             vsg::vec2 texcoord(float(c) * sCoordScale, tCoordOrigin + float(r) * tCoordScale);
-
+            vsg::dvec4 worldUp(cos(longitude) * cos(latitude),
+                               sin(longitude) * cos(latitude),
+                               sin(latitude),
+                               0.0);
+            vsg::dvec4 localUp(worldToLocal * worldUp);
             uint32_t vi = c + r * numCols;
             vertices->set(vi, vertex);
             colors->set(vi, color);
             texcoords->set(vi, texcoord);
+            ellipsoidNormals->set(vi, vsg::vec3(localUp[0], localUp[1], localUp[2]));
         }
     }
 
@@ -388,7 +455,8 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
 
     // setup geometry
     auto drawCommands = vsg::Commands::create();
-    drawCommands->addChild(vsg::BindVertexBuffers::create(0, vsg::DataList{vertices, colors, texcoords}));
+    drawCommands->addChild(vsg::BindVertexBuffers::create(0, vsg::DataList{vertices, colors, texcoords,
+                                                                           ellipsoidNormals}));
     drawCommands->addChild(vsg::BindIndexBuffer::create(indices));
     drawCommands->addChild(vsg::DrawIndexed::create(indices->size(), 1, 0, 0, 0));
 
