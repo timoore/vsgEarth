@@ -61,12 +61,12 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
             vsg::ComputeBounds computeBound;
             tile->accept(computeBound);
             auto& bb = computeBound.bounds;
-            vsg::dsphere bound((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, (bb.min.z + bb.max.z) * 0.5, vsg::length(bb.max - bb.min) * 0.5);
+            vsg::dsphere newBound((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, (bb.min.z + bb.max.z) * 0.5, vsg::length(bb.max - bb.min) * 0.5);
 
             auto plod = VoeLOD::create();
-            plod->setBound(bound);
-            plod->setChild(0, VoeLOD::Child{0.25, {}});  // external child visible when it's bound occupies more than 1/4 of the height of the window
-            plod->setChild(1, VoeLOD::Child{0.0, tile}); // visible always
+            plod->bound = newBound;
+            plod->children[0] = VoeLOD::Child{0.25, {}};  // external child visible when it's bound occupies more than 1/4 of the height of the window
+            plod->children[1] = VoeLOD::Child{0.0, tile}; // visible always
             plod->filename = vsg::make_string(key.str(), ".tile");
             plod->options = options;
 
@@ -141,14 +141,14 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
             vsg::ComputeBounds computeBound;
             tile->accept(computeBound);
             auto& bb = computeBound.bounds;
-            vsg::dsphere bound((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, (bb.min.z + bb.max.z) * 0.5, vsg::length(bb.max - bb.min) * 0.5);
+            vsg::dsphere newBound((bb.min.x + bb.max.x) * 0.5, (bb.min.y + bb.max.y) * 0.5, (bb.min.z + bb.max.z) * 0.5, vsg::length(bb.max - bb.min) * 0.5);
 
             if (local_lod < maxLevel)
             {
                 auto plod = VoeLOD::create();
-                plod->setBound(bound);
-                plod->setChild(0, VoeLOD::Child{lodTransitionScreenHeightRatio, {}}); // external child visible when it's bound occupies more than 1/4 of the height of the window
-                plod->setChild(1, VoeLOD::Child{0.0, tile});                          // visible always
+                plod->bound = newBound;
+                plod->children[0] = VoeLOD::Child{lodTransitionScreenHeightRatio, {}}; // external child visible when it's bound occupies more than 1/4 of the height of the window
+                plod->children[1] = VoeLOD::Child{0.0, tile}; // visible always
                 std::string tileName;
                 tile->getValue("tileName", tileName);
                 plod->filename = vsg::make_string(tileName, ".tile");
@@ -161,7 +161,7 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
             else
             {
                 auto cullGroup = vsg::CullGroup::create();
-                cullGroup->setBound(bound);
+                cullGroup->bound = newBound;
                 cullGroup->addChild(tile);
 
                 group->addChild(cullGroup);
@@ -181,9 +181,9 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
         totalTimeReadingTiles += time_to_read_tile;
     }
 
-    if (group->getNumChildren() != 4)
+    if (group->children.size() != 4)
     {
-        OE_DEBUG << "Warning: could not load all 4 subtiles, loaded only " << group->getNumChildren() << std::endl;
+        OE_DEBUG << "Warning: could not load all 4 subtiles, loaded only " << group->children.size() << std::endl;
         setTileStatus(group, NoSuchTile);
     }
 
@@ -318,7 +318,7 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     auto lightDescriptorSet = vsg::DescriptorSet::create(simState.light_descriptorSetLayout,
                                                          vsg::Descriptors{simState.lightValues});
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
-        bindDescriptorSet->setSlot(2);
+    bindDescriptorSet->slot = 2;
     root->add(bindGraphicsPipeline);
     root->add(bindDescriptorSet);
     return root;

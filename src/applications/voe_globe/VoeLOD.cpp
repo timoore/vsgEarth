@@ -24,7 +24,7 @@ void voe::setTileStatus(vsg::Node* node, TileStatus status)
 
 void VoeLOD::accept(vsg::RecordTraversal& visitor) const
 {
-    const auto& child = getChild(0);
+    const auto& child = children[0];
     if (!child.node || getTileStatus(child.node) == Valid)
     {
         PagedLOD::accept(visitor);
@@ -32,7 +32,7 @@ void VoeLOD::accept(vsg::RecordTraversal& visitor) const
     }
     // Simulate PagedLOD's traversal of child 1, which is actually
     // implemented in the RecordTraversal, yuck.
-    auto sphere = getBound();
+    auto &sphere = bound;
 
     auto frameCount = visitor.getFrameStamp()->frameCount;
 
@@ -53,7 +53,7 @@ void VoeLOD::accept(vsg::RecordTraversal& visitor) const
 
     // check the low res child to see if it's visible
     {
-        const auto& loChild = getChild(1);
+        const auto& loChild = children[1];
         auto cutoff = loChild.minimumScreenHeightRatio * distance;
         bool child_visible = rf > cutoff;
         if (child_visible)

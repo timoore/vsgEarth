@@ -197,7 +197,7 @@ int main(int argc, char** argv)
         auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
         if (reverseDepth)
         {
-            vsg::Node* cgChild = commandGraph->getChild(0);
+            vsg::Node* cgChild = commandGraph->children[0];
             vsg::RenderGraph* renderGraph = dynamic_cast<vsg::RenderGraph*>(cgChild);
             if (renderGraph)
             {
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
             viewer->update();
 
             vsg::dmat4 viewMatrix;
-            camera->getViewMatrix()->get(viewMatrix);
+            camera->viewMatrix->get(viewMatrix);
             vsg::dvec3 dLightDirectionEye = viewMatrix * tileReader->simState.worldDirection;
             vsg::vec3 lightDirectionEye(dLightDirectionEye);
             tileReader->simState.setDirection(lightDirectionEye);
