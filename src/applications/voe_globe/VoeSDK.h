@@ -11,6 +11,9 @@ layout(set = 0, binding = 3) uniform VOETile {
     vec2 elevTexelCoeff;
 } voeTile;
 
+layout(set = 1, binding = 1) uniform VOELight {
+} voeLight;
+
 float oe_terrain_getElevation(in vec2 uv);
 vec4 oe_terrain_getNormalAndCurvatureScaled(in vec2 uv_scaledBiased);
 vec4 oe_terrain_getNormalAndCurvature(in vec2 st);
