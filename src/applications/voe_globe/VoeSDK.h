@@ -12,6 +12,9 @@ layout(set = 0, binding = 3) uniform VOETile {
 } voeTile;
 
 layout(set = 1, binding = 1) uniform VOELight {
+    vec4 direction;
+    vec4 color;
+    vec4 ambient;
 } voeLight;
 
 float oe_terrain_getElevation(in vec2 uv);

@@ -272,8 +272,8 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
 
     // load shaders
-        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("reverse_depth_vert.spv", searchPaths));
-    vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/frag_PushConstants.spv", searchPaths));
+        vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("elevation.vert.spv", searchPaths));
+    vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/elevation.frag.spv", searchPaths));
     if (!vertexShader || !fragmentShader)
     {
         std::cout << "Could not create shaders." << std::endl;

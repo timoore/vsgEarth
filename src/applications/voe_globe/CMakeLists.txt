@@ -21,22 +21,35 @@ add_executable(voe_globe ${SOURCES})
 # add_custom_target()
 
 SET(CONCAT_COMMAND ${CMAKE_SOURCE_DIR}/CMakeModules/ConcatFiles.cmake)
-SET(GLSL_FILES reverse_depth.vert voeSDK.glsl)
+SET(GLSL_FILES voeSDK.glsl)
 list_transform_prepend(GLSL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 message("GLSL_FILES: ${GLSL_FILES}")
 
 set(GLSLC $ENV{VULKAN_SDK}/bin/glslc)
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert
-  COMMAND "${CMAKE_COMMAND}" -P ${CONCAT_COMMAND} ${GLSL_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert"
-  DEPENDS ${GLSL_FILES})
+macro(make_shader SHADER_SOURCE SHADER_OUTPUT)
+  add_custom_command(OUTPUT ${SHADER_OUTPUT}
+  COMMAND "${CMAKE_COMMAND}" -P ${CONCAT_COMMAND} ${SHADER_SOURCE} ${GLSL_FILES} ${SHADER_OUTPUT}
+  DEPENDS ${SHADER_SOURCE} ${GLSL_FILES})
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv
-  COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert)
+  add_custom_command(OUTPUT ${SHADER_OUTPUT}.spv
+  COMMAND ${GLSLC} ${SHADER_OUTPUT} -o ${SHADER_OUTPUT}.spv
+  DEPENDS ${SHADER_OUTPUT})
+endmacro(make_shader)
 
-add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv)
+#add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert
+#  COMMAND "${CMAKE_COMMAND}" -P ${CONCAT_COMMAND} ${GLSL_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert"
+#  DEPENDS ${GLSL_FILES})
+
+#add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv
+#  COMMAND ${GLSLC} ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert -o ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv
+#  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert)
+
+make_shader(${CMAKE_CURRENT_SOURCE_DIR}/reverse_depth.vert ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert)
+make_shader(${CMAKE_CURRENT_SOURCE_DIR}/elevation_main.frag ${CMAKE_CURRENT_SOURCE_DIR}/elevation.frag)
+
+add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv ${CMAKE_CURRENT_SOURCE_DIR}/elevation.frag.spv)
 target_link_libraries(voe_globe vsg::vsg osgEarth ${OpenSceneGraph_LIBRARIES})
 
 target_compile_definitions(voe_globe PRIVATE vsgXchange_FOUND)
