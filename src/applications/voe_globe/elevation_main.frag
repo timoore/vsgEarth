@@ -17,7 +17,7 @@ void main()
     vec4 normalAndCurvature = oe_terrain_getNormalAndCurvature(oe_normalMapCoords);
     vec3 vp_Normal = normalize( oe_normalMapTBN*normalAndCurvature.xyz );
     vec3 illumination = voeLight.ambient.xyz;
-    illumination += min(dot(vp_Normal, -voeLight.direction.xyz), 0.0) * voeLight.color.xyz;
+    illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.xyz;
     outColor = vec4(0.0, 0.0, 0.0, 1.0);
     outColor.xyz = texture(texSampler, fragTexCoord).xyz * fragColor.xyz;
     outColor.xyz *= illumination;

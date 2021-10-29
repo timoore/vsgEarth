@@ -65,7 +65,7 @@ namespace voe
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
         vsg::ref_ptr<vsg::Sampler> normalSampler;
         osg::ref_ptr<osgEarth::ImageLayer> imageLayer;
-        bool reverseDepth = false;
-        bool elevations = false;
+        bool reverseDepth = true;
+        bool elevations = true;
     };
 }

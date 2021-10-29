@@ -3,6 +3,7 @@
 using namespace voe;
 
 SimpleLight::SimpleLight()
+    : worldDirection(0.0, -1.0, 0.0)
 {
     _value = SimpleLightUniformValue::create();
     // Some "sensible" defaults

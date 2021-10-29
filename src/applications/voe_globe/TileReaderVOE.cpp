@@ -1,5 +1,6 @@
 #include "TileReaderVOE.h"
 #include "ImageUtils.h"
+#include "VoeImageUtils.h"
 #include "VoeLOD.h"
 
 #include <osgEarth/Notify>
@@ -224,7 +225,7 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
     vsg::DescriptorSetLayoutBindings elevationDescriptorBindings{
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
-        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // normal texture
         {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
     };
     if (!getElevations())
@@ -273,7 +274,7 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
 
     // load shaders
         vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("elevation.vert.spv", searchPaths));
-    vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("shaders/elevation.frag.spv", searchPaths));
+    vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("elevation.frag.spv", searchPaths));
     if (!vertexShader || !fragmentShader)
     {
         std::cout << "Could not create shaders." << std::endl;
@@ -324,6 +325,7 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
     return root;
 }
 
+// unpleasant workaround for vsgXchange
 
 vsg::ref_ptr<vsg::Node>
 TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
@@ -338,25 +340,26 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
         setTileStatus(scenegraph, NoSuchTile);
         return scenegraph;
     }
-    bool elevResult = mapNode->getMap()->getElevationPool()->getTile(key, false, elevationTexture,
-                                                                     nullptr, nullptr);
-    auto data = osg2vsg::convertToVsg(gimage.getImage(), true);
+    auto data = convertToVsg(gimage.getImage(), true);
     const osgEarth::GeoExtent& extent = gimage.getExtent();
     osgEarth::GeoPoint centroid = extent.getCentroid();
     auto localToWorld = ellipsoidModel->computeLocalToWorldTransform(vsg::dvec3(centroid.y(), centroid.x(), 0.0));
     auto worldToLocal = vsg::inverse(localToWorld);
 
         // create texture image and associated DescriptorSets and binding
-    auto texture = vsg::DescriptorImage::create(sampler, data, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    auto texDescriptor = vsg::DescriptorImage::create(sampler, data, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
     if (elevations)
     {
-        auto elevData = osg2vsg::convertToVsg(elevationTexture->getImage());
-        auto normalData = osg2vsg::convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
-        auto elevationTexture = vsg::DescriptorImage::create(elevationSampler, elevData, 0, 0,
-                                                             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        auto normalTexture = vsg::DescriptorImage::create(normalSampler, normalData, 0, 0,
+        bool elevResult = mapNode->getMap()->getElevationPool()->getTile(key, false, elevationTexture,
+                                                                             nullptr, nullptr);
+        elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
+        auto elevData = convertToVsg(elevationTexture->getImage());
+        auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
+        auto elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
+                                                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        auto normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
                                                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto tileParams = TileParamsValue::create();
         // From engine_rex/TerrainCuller.cpp
@@ -364,14 +367,17 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
         float tileWidth = static_cast<float>(elevData->width());
         tileParams->value().elevTexelCoeff.set((tileWidth - (2.0*bias)) / tileWidth, bias / tileWidth);
         // matrices are identity.
-        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams );
+        tileParams->value().elevationTexMatrix = vsg::mat4();
+        tileParams->value().normalTexMatrix = vsg::mat4();
+        // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
+        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams, 3);
         descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout,
-                                                   vsg::Descriptors{texture, elevationTexture,
-                                                       normalTexture, tileParamsBuffer});
+                                                   vsg::Descriptors{texDescriptor, elevationTexDescriptor,
+                                                       normalTexDescriptor, tileParamsBuffer});
     }
     else
     {
-        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texture});
+        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texDescriptor});
     }
     auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
     scenegraph->add(bindDescriptorSets);

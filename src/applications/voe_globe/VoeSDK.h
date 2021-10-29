@@ -11,7 +11,7 @@ layout(set = 0, binding = 3) uniform VOETile {
     vec2 elevTexelCoeff;
 } voeTile;
 
-layout(set = 1, binding = 1) uniform VOELight {
+layout(set = 1, binding = 0) uniform VOELight {
     vec4 direction;
     vec4 color;
     vec4 ambient;

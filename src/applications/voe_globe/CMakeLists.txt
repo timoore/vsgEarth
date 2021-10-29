@@ -6,6 +6,8 @@ set(SOURCES
     VoeLOD.h
     VoeSim.cpp
     VoeSim.h
+    VoeImageUtils.cpp
+    VoeImageUtils.h
 )
 
 SET(TARGET_SRC ${SOURCES})
@@ -35,7 +37,7 @@ macro(make_shader SHADER_SOURCE SHADER_OUTPUT)
 
   add_custom_command(OUTPUT ${SHADER_OUTPUT}.spv
   COMMAND ${GLSLC} ${SHADER_OUTPUT} -o ${SHADER_OUTPUT}.spv
-  DEPENDS ${SHADER_OUTPUT})
+  DEPENDS ${SHADER_OUTPUT} ${CMAKE_CURRENT_SOURCE_DIR}/VoeSDK.h)
 endmacro(make_shader)
 
 #add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert
