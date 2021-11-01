@@ -60,10 +60,10 @@ namespace voe
         {
             return *reinterpret_cast<const vsg::vec3*>(&_value->value().ambient);
         }
-
         vsg::dvec3 worldDirection;
+
+        void setEyeDirection(const vsg::dmat4& viewMatrix);
     protected:
         vsg::ref_ptr<SimpleLightUniformValue> _value;
-        
     };
 }

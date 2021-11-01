@@ -212,16 +212,8 @@ int main(int argc, char** argv)
 
             vsg::dmat4 viewMatrix;
             camera->viewMatrix->get(viewMatrix);
-            vsg::dvec4 dLightDirectionWorld(tileReader->simState.worldDirection.x,
-                                            tileReader->simState.worldDirection.y,
-                                            tileReader->simState.worldDirection.z,
-                                            0.0);
-            vsg::dvec4 dLightDirectionEye = viewMatrix * dLightDirectionWorld;
-            vsg::vec3 lightDirectionEye(dLightDirectionEye.x,
-                                        dLightDirectionEye.y,
-                                        dLightDirectionEye.z);
-            tileReader->simState.setDirection(lightDirectionEye);
-
+            tileReader->simState.setEyeDirection(viewMatrix);
+            // XXX Check if this is still needed
             viewer->waitForFences(1, 50000000);
             tileReader->simState.lightValues->copyDataListToBuffers();
             
