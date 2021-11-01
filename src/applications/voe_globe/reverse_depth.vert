@@ -36,8 +36,10 @@ void main() {
     vec3 position = inPosition + inEllipsoidNormal * elevation;
     gl_Position = (projection * pc.modelview) * vec4(position, 1.0);
     mat3 normalMatrix = mat3(transpose(inverse(pc.modelview)));
-    oe_UpVectorView = normalMatrix * inEllipsoidNormal;        
     fragColor = inColor;
     fragTexCoord = inTexCoord;
-
+    // The normal map stuff
+    oe_UpVectorView = normalMatrix * inEllipsoidNormal;
+    oe_normalMapCoords = inTexCoord;
+    oe_normalMapBinormal = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
 }
