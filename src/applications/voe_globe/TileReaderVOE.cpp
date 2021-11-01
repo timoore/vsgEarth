@@ -1,5 +1,4 @@
 #include "TileReaderVOE.h"
-#include "ImageUtils.h"
 #include "VoeImageUtils.h"
 #include "VoeLOD.h"
 
