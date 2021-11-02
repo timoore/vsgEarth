@@ -33,7 +33,7 @@ namespace voe
         double lodTransitionScreenHeightRatio = 0.25;
 
         std::string projection;
-        vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel = vsg::EllipsoidModel::create();
+        vsg::ref_ptr<vsg::EllipsoidModel> ellipsoidModel;
 
         osg::ref_ptr<osgEarth::MapNode> mapNode;
 

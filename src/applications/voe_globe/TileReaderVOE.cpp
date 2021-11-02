@@ -198,6 +198,8 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
         throw std::runtime_error("no map");
     }
     osgEarth::Map* map = mapNode->getMap();
+    auto const& em = map->getProfile()->getSRS()->getEllipsoid();
+    ellipsoidModel = vsg::EllipsoidModel::create(em.getRadiusEquator(), em.getRadiusPolar());
     osgEarth::LayerVector layers;
     map->getLayers(layers);
     for (auto& layer : layers)
