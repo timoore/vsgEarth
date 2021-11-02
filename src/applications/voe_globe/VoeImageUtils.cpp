@@ -1,5 +1,7 @@
 #include "VoeImageUtils.h"
 
+#include <osg/Texture>
+
 /* <editor-fold desc="MIT License">
 
 Copyright(c) 2018 Robert Osfield
