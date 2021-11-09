@@ -343,6 +343,11 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
     {
         bool elevResult = mapNode->getMap()->getElevationPool()->getTile(key, false, elevationTexture,
                                                                              nullptr, nullptr);
+        if (!elevResult)
+        {
+            setTileStatus(scenegraph, NoSuchTile);
+            return scenegraph;
+        }
         elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
         auto elevData = convertToVsg(elevationTexture->getImage());
         auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
