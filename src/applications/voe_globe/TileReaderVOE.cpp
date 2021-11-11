@@ -7,6 +7,23 @@
 
 using namespace voe;
 
+TileReaderVOE::WireframeInputHandler::WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode)
+    : switchNode(switchNode), state(0)
+{
+}
+
+void TileReaderVOE::WireframeInputHandler::apply(vsg::KeyPressEvent& keyPress)
+{
+    vsg::ref_ptr<vsg::Switch> s(switchNode);
+    if (!s)
+        return;
+    if (keyPress.keyBase == vsg::KEY_w)
+    {
+        state = (state + 1) % 3;
+        s->setSingleChildOn(state);
+    }
+}
+
 osg::ArgumentParser convertArgs(vsg::CommandLine& commandLine)
 {
     return osg::ArgumentParser(&commandLine.argc(), commandLine.argv());
@@ -50,7 +67,8 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read(const vsg::Path& filename, vsg::re
 vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Options> options) const
 {
     // State group for the whole terrain
-    auto group = createRoot();
+    auto [sceneRoot, tileRoot] = createRoot();
+    sceneRootSwitch = sceneRoot;
     std::vector<osgEarth::TileKey> rootKeys;
     mapNode->getMap()->getProfile()->getRootKeys(rootKeys);
     for (const auto& key : rootKeys)
@@ -70,7 +88,7 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
             plod->filename = vsg::make_string(key.str(), ".tile");
             plod->options = options;
 
-            group->addChild(plod);
+            tileRoot->addChild(plod);
         }
     }
 
@@ -88,13 +106,13 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
 
     // set up the ResourceHints required to make sure the VSG preallocates enough Vulkan resources for the paged database
     vsg::CollectResourceRequirements collectRequirements;
-    group->accept(collectRequirements);
-    group->setObject("ResourceHints", collectRequirements.createResourceHints(tileMultiplier));
+    sceneRoot->accept(collectRequirements);
+    sceneRoot->setObject("ResourceHints", collectRequirements.createResourceHints(tileMultiplier));
 
     // assign the EllipsoidModel so that the overall geometry of the database can be used as guide for clipping and navigation.
-    group->setObject("EllipsoidModel", ellipsoidModel);
+    sceneRoot->setObject("EllipsoidModel", ellipsoidModel);
 
-    return group;
+    return sceneRoot;
 }
 
 vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& key,
@@ -256,7 +274,7 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
     
 }
 
-vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
+std::tuple<vsg::ref_ptr<vsg::Switch>, vsg::ref_ptr<vsg::StateGroup>> TileReaderVOE::createRoot() const
 {
     // set up search paths to SPIRV shaders and textures
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
@@ -293,25 +311,42 @@ vsg::ref_ptr<vsg::StateGroup> TileReaderVOE::createRoot() const
         vertexShader->specializationConstants = specializationConstants;
         depthStencilState->depthCompareOp = VK_COMPARE_OP_GREATER;
     }
-    vsg::GraphicsPipelineStates pipelineStates{
+    vsg::GraphicsPipelineStates fillPipelineStates{
+        vsg::RasterizationState::create(),
         vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
         vsg::InputAssemblyState::create(),
-        vsg::RasterizationState::create(),
         vsg::MultisampleState::create(),
         vsg::ColorBlendState::create(),
         depthStencilState};
 
-    auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-    auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
+    auto wireRasterState = vsg::RasterizationState::create();
+    wireRasterState->polygonMode = VK_POLYGON_MODE_LINE;
+    vsg::GraphicsPipelineStates wirePipelineStates(fillPipelineStates);
+    wirePipelineStates[0] = wireRasterState;
+    auto pointRasterState = vsg::RasterizationState::create();
+    pointRasterState->polygonMode = VK_POLYGON_MODE_POINT;
+    vsg::GraphicsPipelineStates pointPipelineStates(fillPipelineStates);
+    pointPipelineStates[0] = pointRasterState;
 
-    auto root = vsg::StateGroup::create();
+    vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
+    auto switchRoot = vsg::Switch::create();
+    auto lightStateGroup = vsg::StateGroup::create();
     auto lightDescriptorSet = vsg::DescriptorSet::create(simState.light_descriptorSetLayout,
                                                          vsg::Descriptors{simState.lightValues});
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
-    bindDescriptorSet->slot = 2;
-    root->add(bindGraphicsPipeline);
-    root->add(bindDescriptorSet);
-    return root;
+    bindDescriptorSet->slot = 2; // XXX Why?
+    lightStateGroup->add(bindDescriptorSet);
+    vsg::GraphicsPipelineStates* pipelineStates[] = {&fillPipelineStates, &wirePipelineStates, &pointPipelineStates};
+    for (int i = 0; i < 3; ++i)
+    {
+        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, shaderStages, *pipelineStates[i]);
+        auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
+        auto stateGroup = vsg::StateGroup::create();
+        stateGroup->add(bindGraphicsPipeline);
+        stateGroup->addChild(lightStateGroup);
+        switchRoot->addChild(i == 0, stateGroup);
+    }
+    return {switchRoot, lightStateGroup};
 }
 
 // unpleasant workaround for vsgXchange
@@ -464,4 +499,9 @@ TileReaderVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::
     transform->addChild(drawCommands);
     setTileStatus(scenegraph, Valid);
     return scenegraph;
+}
+
+vsg::ref_ptr<TileReaderVOE::WireframeInputHandler> TileReaderVOE::createWireframeHandler()
+{
+    return WireframeInputHandler::create(sceneRootSwitch);
 }

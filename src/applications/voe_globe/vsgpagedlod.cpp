@@ -147,6 +147,8 @@ int main(int argc, char** argv)
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
+        viewer->addEventHandler(tileReader->createWireframeHandler());
+
         if (ellipsoidModel)
         {
             auto trackball = vsg::Trackball::create(camera, ellipsoidModel);

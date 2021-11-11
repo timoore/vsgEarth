@@ -1,5 +1,6 @@
 #pragma once
 
+#include <tuple>
 #include <vsg/all.h>
 
 #include <osgEarth/MapNode>
@@ -26,6 +27,14 @@ namespace voe
     class TileReaderVOE : public vsg::Inherit<vsg::ReaderWriter, TileReaderVOE>
     {
     public:
+        class WireframeInputHandler : public vsg::Inherit<vsg::Visitor, WireframeInputHandler>
+        {
+            vsg::observer_ptr<vsg::Switch> switchNode;
+            unsigned state;
+        public:
+            WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode);
+            void apply(vsg::KeyPressEvent& keyPress) override;
+        };
         // defaults for readymap / a globe
         vsg::dbox extents = {{-180.0, -90.0, 0.0}, {180.0, 90.0, 1.0}};
         uint32_t maxLevel = 22;
@@ -52,12 +61,13 @@ namespace voe
         bool getElevations() const { return elevations; }
         void setElevations(bool val) { elevations = val; }
         SimpleLight simState;
+        vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
     protected:
         vsg::ref_ptr<vsg::Object> read_root(vsg::ref_ptr<const vsg::Options> options = {}) const;
         vsg::ref_ptr<vsg::Object> read_subtile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options = {}) const;
 
         vsg::ref_ptr<vsg::Node> createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const;
-        vsg::ref_ptr<vsg::StateGroup> createRoot() const;
+        std::tuple<vsg::ref_ptr<vsg::Switch>, vsg::ref_ptr<vsg::StateGroup>>  createRoot() const;
 
         vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
         vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout;
@@ -65,6 +75,7 @@ namespace voe
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
         vsg::ref_ptr<vsg::Sampler> normalSampler;
         osg::ref_ptr<osgEarth::ImageLayer> imageLayer;
+        mutable vsg::ref_ptr<vsg::Switch> sceneRootSwitch;
         bool reverseDepth = true;
         bool elevations = true;
     };
