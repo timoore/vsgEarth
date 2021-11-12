@@ -1,4 +1,6 @@
 set(SOURCES
+    TerrainEngineVOE.h
+    TerrainEngineVOE.cpp
     TileReaderVOE.h
     TileReaderVOE.cpp
     vsgpagedlod.cpp

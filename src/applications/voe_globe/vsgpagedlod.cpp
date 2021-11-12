@@ -9,7 +9,7 @@
 
 // #include "../../shared/AnimationPath.h"
 
-#include "TileReaderVOE.h"
+#include "TerrainEngineVOE.h"
 
 using namespace voe;
 
@@ -25,9 +25,8 @@ int main(int argc, char** argv)
         options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
         options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
 
-        auto tileReader = TileReaderVOE::create();
-        options->add(tileReader);
-
+        auto terrainEngine = TerrainEngineVOE::create();
+        options->add(terrainEngine->tileReader);
         // add vsgXchange's support for reading and writing 3rd party file formats
         options->add(vsgXchange::all::create());
 
@@ -57,9 +56,6 @@ int main(int argc, char** argv)
         uint32_t numOperationThreads = 0;
         if (arguments.read("--ot", numOperationThreads)) options->operationThreads = vsg::OperationThreads::create(numOperationThreads);
 
-        arguments.read("-t", tileReader->lodTransitionScreenHeightRatio);
-        arguments.read("-m", tileReader->maxLevel);
-
         const double invalid_value = std::numeric_limits<double>::max();
         double poi_latitude = invalid_value;
         double poi_longitude = invalid_value;
@@ -68,15 +64,13 @@ int main(int argc, char** argv)
         while (arguments.read("--distance", poi_distance)) {};
 
         if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
-
-        // initial the state that will be shared between tiles.
-        tileReader->init(arguments);
+        terrainEngine->init(options, arguments);
 
         windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
-        tileReader->setReverseDepth(true);
+        terrainEngine->tileReader->setReverseDepth(true);
 
         // load the root tile.
-        auto vsg_scene = vsg::read_cast<vsg::Node>("root.tile", options);
+        auto vsg_scene = terrainEngine->createScene(options);
         if (!vsg_scene) return 1;
 
         if (!outputFilename.empty())
@@ -147,7 +141,7 @@ int main(int argc, char** argv)
         // add close handler to respond the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
-        viewer->addEventHandler(tileReader->createWireframeHandler());
+        viewer->addEventHandler(terrainEngine->createWireframeHandler());
 
         if (ellipsoidModel)
         {
@@ -212,10 +206,10 @@ int main(int argc, char** argv)
 
             vsg::dmat4 viewMatrix;
             camera->viewMatrix->get(viewMatrix);
-            tileReader->simState.setEyeDirection(viewMatrix);
+            terrainEngine->simState.setEyeDirection(viewMatrix);
             // XXX Check if this is still needed
             viewer->waitForFences(1, 50000000);
-            tileReader->simState.lightValues->copyDataListToBuffers();
+            terrainEngine->simState.lightValues->copyDataListToBuffers();
             
             viewer->recordAndSubmit();
 
@@ -223,10 +217,10 @@ int main(int argc, char** argv)
         }
 
         {
-            std::scoped_lock<std::mutex> lock(tileReader->statsMutex);
+            std::scoped_lock<std::mutex> lock(terrainEngine->tileReader->statsMutex);
             std::cout<<"numOperationThreads = "<<numOperationThreads<<std::endl;
-            std::cout<<"numTilesRead = "<<tileReader->numTilesRead<<std::endl;
-            std::cout<<"average TimeReadingTiles = "<<(tileReader->totalTimeReadingTiles / static_cast<double>(tileReader->numTilesRead))<<std::endl;
+            std::cout<<"numTilesRead = "<<terrainEngine->tileReader->numTilesRead<<std::endl;
+            std::cout<<"average TimeReadingTiles = "<<(terrainEngine->tileReader->totalTimeReadingTiles / static_cast<double>(terrainEngine->tileReader->numTilesRead))<<std::endl;
         }
 
 

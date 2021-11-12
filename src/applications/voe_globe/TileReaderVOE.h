@@ -12,6 +12,7 @@
 
 namespace voe
 {
+    class TerrainEngineVOE;
     struct TileParams
     {
         vsg::mat4 elevationTexMatrix;
@@ -26,15 +27,9 @@ namespace voe
     
     class TileReaderVOE : public vsg::Inherit<vsg::ReaderWriter, TileReaderVOE>
     {
+        friend class TerrainEngineVOE;
     public:
-        class WireframeInputHandler : public vsg::Inherit<vsg::Visitor, WireframeInputHandler>
-        {
-            vsg::observer_ptr<vsg::Switch> switchNode;
-            unsigned state;
-        public:
-            WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode);
-            void apply(vsg::KeyPressEvent& keyPress) override;
-        };
+        TileReaderVOE();
         // defaults for readymap / a globe
         vsg::dbox extents = {{-180.0, -90.0, 0.0}, {180.0, 90.0, 1.0}};
         uint32_t maxLevel = 22;
@@ -51,7 +46,6 @@ namespace voe
         void init(vsg::CommandLine& commandLine, vsg::ref_ptr<const vsg::Options> options = {});
 
         vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options = {}) const override;
-
         // timing stats
         mutable std::mutex statsMutex;
         mutable uint64_t numTilesRead{0};
@@ -61,21 +55,10 @@ namespace voe
         bool getElevations() const { return elevations; }
         void setElevations(bool val) { elevations = val; }
         SimpleLight simState;
-        vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
     protected:
         vsg::ref_ptr<vsg::Object> read_root(vsg::ref_ptr<const vsg::Options> options = {}) const;
         vsg::ref_ptr<vsg::Object> read_subtile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options = {}) const;
-
-        vsg::ref_ptr<vsg::Node> createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const;
-        std::tuple<vsg::ref_ptr<vsg::Switch>, vsg::ref_ptr<vsg::StateGroup>>  createRoot() const;
-
-        vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
-        vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout;
-        vsg::ref_ptr<vsg::Sampler> sampler;
-        vsg::ref_ptr<vsg::Sampler> elevationSampler;
-        vsg::ref_ptr<vsg::Sampler> normalSampler;
-        osg::ref_ptr<osgEarth::ImageLayer> imageLayer;
-        mutable vsg::ref_ptr<vsg::Switch> sceneRootSwitch;
+        vsg::observer_ptr<TerrainEngineVOE> terrainEngine;
         bool reverseDepth = true;
         bool elevations = true;
     };
