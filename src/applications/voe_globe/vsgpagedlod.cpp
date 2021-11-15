@@ -184,7 +184,7 @@ int main(int argc, char** argv)
         }
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
-        // reverseDepth
+        // set up for reverseDepth
         vsg::Node* cgChild = commandGraph->children[0];
         vsg::RenderGraph* renderGraph = dynamic_cast<vsg::RenderGraph*>(cgChild);
         if (renderGraph)

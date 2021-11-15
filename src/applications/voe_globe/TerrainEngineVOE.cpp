@@ -45,8 +45,6 @@ namespace
 void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine)
 {
     tileReader->terrainEngine = this;
-    commandLine.read("-t", tileReader->lodTransitionScreenHeightRatio);
-    commandLine.read("-m", tileReader->maxLevel);
     // Read the osgEarth arguments
     tileReader->init(commandLine);
 
@@ -87,7 +85,7 @@ void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine
         {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // normal texture
         {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
     };
-    if (!tileReader->getElevations())
+    if (!elevations)
     {
         descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);        
     }
@@ -155,7 +153,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     };
 
     auto depthStencilState = vsg::DepthStencilState::create();
-    if (tileReader->getReverseDepth())
+    if (reverseDepth)
     {
         vsg::ShaderStage::SpecializationConstants specializationConstants{
         {0, vsg::uintValue::create(1)}

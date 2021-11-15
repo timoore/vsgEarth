@@ -193,4 +193,7 @@ void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg:
     vsg::ref_ptr<TerrainEngineVOE> te(terrainEngine);
     if (!te)
         throw std::runtime_error("no terrain engine!");
+    commandLine.read("-t", lodTransitionScreenHeightRatio);
+    commandLine.read("-m", maxLevel);
+
 }
