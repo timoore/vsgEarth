@@ -76,7 +76,7 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
 
             auto plod = VoeLOD::create();
             plod->bound = newBound;
-            plod->children[0] = VoeLOD::Child{0.25, {}};  // external child visible when it's bound occupies more than 1/4 of the height of the window
+            plod->children[0] = VoeLOD::Child{lodTransitionScreenHeightRatio, {}}; 
             plod->children[1] = VoeLOD::Child{0.0, tile}; // visible always
             plod->filename = vsg::make_string(key.str(), ".tile");
             plod->options = options;
