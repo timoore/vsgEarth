@@ -205,6 +205,88 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     return switchRoot;
  }
 
+vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey, uint32_t tileSize,
+                                               uint8_t textureOrigin)
+{
+    const uint32_t numRows = tileSize;
+    const uint32_t numCols = tileSize;
+    const uint32_t numVertices = numRows * numCols;
+    const uint32_t numTriangles = (numRows - 1) * (numCols - 1) * 2;
+    osgEarth::GeoLocator locator(tileKey.getExtent());
+    osgEarth::GeoPoint centroid = tileKey.getExtent().getCentroid();
+    osg::Matrix world2local, local2world;
+    centroid.createWorldToLocal(world2local);
+    local2world.invert(world2local);
+
+    float sCoordScale = 1.0f / float(numCols - 1);
+    float tCoordScale = 1.0f / float(numRows - 1);
+    float tCoordOrigin = 0.0;
+
+    if (textureOrigin == vsg::TOP_LEFT)
+    {
+        tCoordScale = -tCoordScale;
+        tCoordOrigin = 1.0f;
+    }
+
+    vsg::vec3 color(1.0f, 1.0f, 1.0f);
+
+    // set up vertex coords
+    auto vertices = vsg::vec3Array::create(numVertices);
+    auto colors = vsg::vec3Array::create(numVertices);
+    auto texcoords = vsg::vec2Array::create(numVertices);
+    auto ellipsoidNormals = vsg::vec3Array::create(numVertices);
+    for (uint32_t r = 0; r < numRows; ++r)
+    {
+        double ny = r / static_cast<double>(numRows - 1);
+        for (uint32_t c = 0; c < numCols; ++c)
+        {
+            double nx = c / static_cast<double>(numCols - 1);
+            uint32_t vi = c + r * numCols;
+            osg::Vec3d unit(nx, ny, 0.0);
+            osg::Vec3d model;
+            locator.unitToWorld(unit, model);
+            // OSG multiplication order
+            osg::Vec3d modelLTP(model * world2local);
+            vertices->set(vi, vsg::vec3(toVsg(modelLTP)));
+            unit.z() = 1.0f;
+            osg::Vec3d modelPlusOne;
+            locator.unitToWorld(unit, modelPlusOne);
+            osg::Vec3d normal;
+            normal = (modelPlusOne*world2local) - modelLTP;
+            normal.normalize();
+            ellipsoidNormals->set(vi, vsg::vec3(toVsg(normal)));
+            vsg::vec2 texcoord(c * sCoordScale, tCoordOrigin + r * tCoordScale);
+            texcoords->set(vi, texcoord);
+            colors->set(vi, color);
+        }
+    }
+
+    // set up indices
+    auto indices = vsg::ushortArray::create(numTriangles * 3);
+    auto itr = indices->begin();
+    for (uint32_t r = 0; r < numRows - 1; ++r)
+    {
+        for (uint32_t c = 0; c < numCols - 1; ++c)
+        {
+            uint32_t vi = c + r * numCols;
+            (*itr++) = vi;
+            (*itr++) = vi + 1;
+            (*itr++) = vi + numCols;
+            (*itr++) = vi + numCols;
+            (*itr++) = vi + 1;
+            (*itr++) = vi + numCols + 1;
+        }
+    }
+
+    // setup geometry
+    auto drawCommands = vsg::Commands::create();
+    drawCommands->addChild(vsg::BindVertexBuffers::create(0, vsg::DataList{vertices, colors, texcoords,
+                                                                           ellipsoidNormals}));
+    drawCommands->addChild(vsg::BindIndexBuffer::create(indices));
+    drawCommands->addChild(vsg::DrawIndexed::create(indices->size(), 1, 0, 0, 0));
+    return drawCommands;
+}
+
 vsg::ref_ptr<vsg::Node>
 TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
 {
@@ -268,85 +350,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
 
     // add transform to root of the scene graph
     scenegraph->addChild(transform);
-
-    uint32_t numRows = 32;
-    uint32_t numCols = 32;
-    uint32_t numVertices = numRows * numCols;
-    uint32_t numTriangles = (numRows - 1) * (numCols - 1) * 2;
-
-    double longitudeOrigin = extent.xMin();
-    double longitudeScale = (extent.xMax() - extent.xMin()) / double(numCols - 1);
-    double latitudeOrigin = extent.yMin();
-    double latitudeScale = (extent.yMax() - extent.yMin()) / double(numRows - 1);
-
-    float sCoordScale = 1.0f / float(numCols - 1);
-    float tCoordScale = 1.0f / float(numRows - 1);
-    float tCoordOrigin = 0.0;
-
-    if (data->getLayout().origin == vsg::TOP_LEFT)
-    {
-        tCoordScale = -tCoordScale;
-        tCoordOrigin = 1.0f;
-    }
-
-        vsg::vec3 color(1.0f, 1.0f, 1.0f);
-
-    // set up vertex coords
-    auto vertices = vsg::vec3Array::create(numVertices);
-    auto colors = vsg::vec3Array::create(numVertices);
-    auto texcoords = vsg::vec2Array::create(numVertices);
-    auto ellipsoidNormals = vsg::vec3Array::create(numVertices);
-    for (uint32_t r = 0; r < numRows; ++r)
-    {
-        for (uint32_t c = 0; c < numCols; ++c)
-        {
-            vsg::dvec3 lla
-                = computeLatitudeLongitudeAltitude(latitudeOrigin + double(r) * latitudeScale,
-                                                   longitudeOrigin + double(c) * longitudeScale,
-                                                   0.0);
-            const float latitude = vsg::radians(lla[0]);
-            const float longitude = vsg::radians(lla[1]);
-
-            auto ecef = ellipsoidModel->convertLatLongAltitudeToECEF(lla);
-            vsg::vec3 vertex(worldToLocal * ecef);
-            vsg::vec2 texcoord(float(c) * sCoordScale, tCoordOrigin + float(r) * tCoordScale);
-            vsg::dvec4 worldUp(cos(longitude) * cos(latitude),
-                               sin(longitude) * cos(latitude),
-                               sin(latitude),
-                               0.0);
-            vsg::dvec4 localUp(worldToLocal * worldUp);
-            uint32_t vi = c + r * numCols;
-            vertices->set(vi, vertex);
-            colors->set(vi, color);
-            texcoords->set(vi, texcoord);
-            ellipsoidNormals->set(vi, vsg::vec3(localUp[0], localUp[1], localUp[2]));
-        }
-    }
-
-    // set up indices
-    auto indices = vsg::ushortArray::create(numTriangles * 3);
-    auto itr = indices->begin();
-    for (uint32_t r = 0; r < numRows - 1; ++r)
-    {
-        for (uint32_t c = 0; c < numCols - 1; ++c)
-        {
-            uint32_t vi = c + r * numCols;
-            (*itr++) = vi;
-            (*itr++) = vi + 1;
-            (*itr++) = vi + numCols;
-            (*itr++) = vi + numCols;
-            (*itr++) = vi + 1;
-            (*itr++) = vi + numCols + 1;
-        }
-    }
-
-    // setup geometry
-    auto drawCommands = vsg::Commands::create();
-    drawCommands->addChild(vsg::BindVertexBuffers::create(0, vsg::DataList{vertices, colors, texcoords,
-                                                                           ellipsoidNormals}));
-    drawCommands->addChild(vsg::BindIndexBuffer::create(indices));
-    drawCommands->addChild(vsg::DrawIndexed::create(indices->size(), 1, 0, 0, 0));
-
+    auto drawCommands = createTileGeometry(key, 32, data->getLayout().origin);
     // add drawCommands to transform
     transform->addChild(drawCommands);
     return scenegraph;
