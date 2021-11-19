@@ -1,6 +1,8 @@
 #include "TerrainEngineVOE.h"
 #include "VoeImageUtils.h"
 
+#include <osgEarth/Locators>
+
 using namespace voe;
 
 TerrainEngineVOE::WireframeInputHandler::WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode)
@@ -53,28 +55,12 @@ void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine
     {
         throw std::runtime_error("no map");
     }
+    const osgEarth::MapNode::Options& mapNodeOptions = const_cast<const osgEarth::MapNode*>(mapNode.get())->options();
+    modelFactory = new osgEarth::TerrainTileModelFactory(mapNodeOptions.terrain().get());
     osgEarth::Map* map = mapNode->getMap();
     auto const& em = map->getProfile()->getSRS()->getEllipsoid();
     ellipsoidModel = vsg::EllipsoidModel::create(em.getRadiusEquator(), em.getRadiusPolar());
-    osgEarth::LayerVector layers;
-    map->getLayers(layers);
-    for (auto& layer : layers)
-    {
-        if (layer)
-        {
-            if (layer->getEnabled())
-            {
-                if (layer->getRenderType() == osgEarth::Layer::RENDERTYPE_TERRAIN_SURFACE)
-                {
-                    osgEarth::ImageLayer* ilayer = dynamic_cast<osgEarth::ImageLayer*>(layer.get());
-                    if (ilayer)
-                    {
-                        imageLayer = ilayer;
-                    }
-                }
-            }
-        }
-    }
+
     // set up graphics pipeline
     vsg::DescriptorSetLayoutBindings descriptorBindings{
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
@@ -291,18 +277,28 @@ vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey,
 vsg::ref_ptr<vsg::Node>
 TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
 {
-    vsg::ref_ptr<vsg::Node> nullNode;
-    osgEarth::GeoImage gimage = imageLayer->createImage(key);
-    osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;
-    // create StateGroup to bind any texture state
-    if (!gimage.valid())
+    osg::ref_ptr<osgEarth::TerrainTileModel> tileModel
+        = modelFactory->createTileModel(getMap(), key, osgEarth::CreateTileManifest(),
+                                        nullptr, nullptr);
+    auto& colorLayerModel = *tileModel->colorLayers().begin();
+    osg::Texture* texture = nullptr;
+    osg::RefMatrixf* textureMatrix = nullptr;
+    if (colorLayerModel.valid())
     {
-        return nullNode;
+        osgEarth::TerrainTileImageLayerModel* imageLayerModel
+            = dynamic_cast<osgEarth::TerrainTileImageLayerModel*>(colorLayerModel.get());
+        if (imageLayerModel && imageLayerModel->getTexture())
+        {
+            texture = imageLayerModel->getTexture();
+            textureMatrix = imageLayerModel->getMatrix();
+        }
     }
+    if (!texture)
+        return {};
+    // create StateGroup to bind any texture state
     auto scenegraph = vsg::StateGroup::create();
-    auto data = convertToVsg(gimage.getImage(), true);
-    const osgEarth::GeoExtent& extent = gimage.getExtent();
-    osgEarth::GeoPoint centroid = extent.getCentroid();
+    auto data = convertToVsg(texture->getImage(0), true);
+    osgEarth::GeoPoint centroid = key.getExtent().getCentroid();
     auto localToWorld = ellipsoidModel->computeLocalToWorldTransform(vsg::dvec3(centroid.y(), centroid.x(), 0.0));
     auto worldToLocal = vsg::inverse(localToWorld);
 
@@ -310,14 +306,15 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     auto texDescriptor = vsg::DescriptorImage::create(sampler, data, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
+    osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;
     if (elevations)
     {
-        bool elevResult = mapNode->getMap()->getElevationPool()->getTile(key, false, elevationTexture,
-                                                                             nullptr, nullptr);
-        if (!elevResult)
+        if (!tileModel->elevationModel().valid() || !tileModel->elevationModel()->getTexture())
         {
-            return nullNode;
+            // XXX Pretty harsh
+            return {};
         }
+        elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
         elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
         auto elevData = convertToVsg(elevationTexture->getImage());
         auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vsg/all.h>
+#include <osgEarth/TerrainTileModelFactory>
 
 // Class responsible for assembling a tile from the osgEarth map. In practice this means that it is
 // responsible for setting up the StateGroup nodes that hold the BindGraphicsPipeline objects that
@@ -30,6 +31,7 @@ namespace voe
         vsg::ref_ptr<vsg::Node> createTile(const osgEarth::TileKey& key,
                                            vsg::ref_ptr<const vsg::Options> options) const;
         osgEarth::Map* getMap() { return mapNode->getMap(); }
+        const osgEarth::Map* getMap() const { return mapNode->getMap(); }
         vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
         vsg::ref_ptr<TileReaderVOE> tileReader;
         std::string projection;
@@ -44,10 +46,9 @@ namespace voe
         vsg::ref_ptr<vsg::Sampler> sampler;
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
         vsg::ref_ptr<vsg::Sampler> normalSampler;
-        osg::ref_ptr<osgEarth::ImageLayer> imageLayer;
         vsg::ref_ptr<vsg::Switch> sceneRootSwitch;
         bool reverseDepth = true;
         bool elevations = true;
-
+        osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
     };
 }
