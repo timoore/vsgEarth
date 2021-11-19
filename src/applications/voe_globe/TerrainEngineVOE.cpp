@@ -111,13 +111,14 @@ void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine
     sampler->maxAnisotropy = 16.0f;
 
     elevationSampler = vsg::Sampler::create();
-    elevationSampler->maxLod = mipmapLevelsHint;
+    elevationSampler->maxLod = 0;
+    elevationSampler->minFilter = VK_FILTER_NEAREST;
     elevationSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     elevationSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     elevationSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
     normalSampler = vsg::Sampler::create();
-    normalSampler->maxLod = mipmapLevelsHint;
+    normalSampler->maxLod = 0;
     normalSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     normalSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     normalSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
