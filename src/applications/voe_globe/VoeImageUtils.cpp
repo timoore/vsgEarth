@@ -44,10 +44,44 @@ namespace voe
         return vsg_data;
     }
 
+    vsg::ref_ptr<vsg::Data> createExpandedData(const osg::Image* image)
+    {
+        if (image->getDataType() != GL_UNSIGNED_BYTE)
+            return {};
+        unsigned sourceSize = image->getTotalSizeInBytesIncludingMipmaps();
+        unsigned sourceElements = sourceSize / 3;
+        const unsigned char* sourceData = image->data();
+        vsg::ubvec4* destData = new vsg::ubvec4[sourceElements];
+        const unsigned char* srcPtr = sourceData;
+        for (int i = 0; i < sourceElements; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+                destData[i][j] = *srcPtr++;
+            destData[i][3] = 255;
+        }
+        vsg::Data::Layout layout;
+        layout.format = VK_FORMAT_R8G8B8A8_UNORM;
+        layout.maxNumMipmaps = image->getNumMipmapLevels();
+        if (image->getOrigin() == osg::Image::BOTTOM_LEFT)
+            layout.origin = vsg::BOTTOM_LEFT;
+        else
+            layout.origin = vsg::TOP_LEFT;
+        return vsg::Array2D<vsg::ubvec4>::create(image->s(), image->t(), destData, layout);
+    }
+
     vsg::ref_ptr<vsg::Data> convertToVsg(const osg::Image* image, bool mapRGBtoRGBAHint)
     {
-        if (!image || image->isCompressed() || image->getPixelFormat() != GL_RG)
+        if (!image || image->isCompressed()
+            || (image->getPixelFormat() != GL_RG && image->getPixelFormat() != GL_RGB))
             return osg2vsg::convertToVsg(image, mapRGBtoRGBAHint);
+
+        if (image->getPixelFormat() == GL_RGB)
+        {
+            if (mapRGBtoRGBAHint)
+                return createExpandedData(image);
+            else
+                return osg2vsg::convertToVsg(image, mapRGBtoRGBAHint);
+        }
 
         osg::Image* new_image = const_cast<osg::Image*>(image);
 
