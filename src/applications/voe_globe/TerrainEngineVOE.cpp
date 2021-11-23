@@ -302,8 +302,10 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     auto localToWorld = ellipsoidModel->computeLocalToWorldTransform(vsg::dvec3(centroid.y(), centroid.x(), 0.0));
     auto worldToLocal = vsg::inverse(localToWorld);
 
-        // create texture image and associated DescriptorSets and binding
-    auto texDescriptor = vsg::DescriptorImage::create(sampler, data, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    // create texture image and associated DescriptorSets and binding
+    vsg::ImageInfoList imageTextures;
+    imageTextures.push_back(vsg::ImageInfo::create(sampler, data));
+    auto texDescriptor = vsg::DescriptorImage::create(imageTextures, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
     osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;

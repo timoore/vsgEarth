@@ -19,6 +19,6 @@ void main()
     vec3 illumination = voeLight.ambient.xyz;
     illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.xyz;
     outColor = vec4(0.0, 0.0, 0.0, 1.0);
-    outColor.xyz = texture(texSampler, fragTexCoord).xyz * fragColor.xyz;
+    outColor.xyz = texture(texSampler[0], fragTexCoord).xyz * fragColor.xyz;
     outColor.xyz *= illumination;
 }
