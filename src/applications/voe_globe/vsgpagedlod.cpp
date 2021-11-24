@@ -9,7 +9,7 @@
 
 // #include "../../shared/AnimationPath.h"
 
-#include "TerrainEngineVOE.h"
+#include <vsgEarth/TerrainEngineVOE.h>
 
 using namespace voe;
 
@@ -204,8 +204,7 @@ int main(int argc, char** argv)
 
             viewer->update();
 
-            vsg::dmat4 viewMatrix;
-            camera->viewMatrix->get(viewMatrix);
+            vsg::dmat4 viewMatrix = camera->viewMatrix->transform();
             terrainEngine->simState.setEyeDirection(viewMatrix);
             // XXX Check if this is still needed
             viewer->waitForFences(1, 50000000);

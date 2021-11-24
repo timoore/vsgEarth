@@ -8,12 +8,13 @@
 // are used to render the tiles. Management of the vsg::PagedLOD structure is delegated to
 // TileReaderVOE.
 
+#include "Export.h"
 #include "TileReaderVOE.h"
 #include "VoeSim.h"
 
 namespace voe
 {
-    class TerrainEngineVOE : public vsg::Inherit<vsg::Object, TerrainEngineVOE>
+    class VSGEARTH_EXPORT TerrainEngineVOE : public vsg::Inherit<vsg::Object, TerrainEngineVOE>
     {
     public:
         class WireframeInputHandler : public vsg::Inherit<vsg::Visitor, WireframeInputHandler>
