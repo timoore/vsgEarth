@@ -33,6 +33,10 @@ namespace voe
                                            vsg::ref_ptr<const vsg::Options> options) const;
         osgEarth::Map* getMap() { return mapNode->getMap(); }
         const osgEarth::Map* getMap() const { return mapNode->getMap(); }
+        bool getReverseDepth() const { return reverseDepth; }
+        void setReverseDepth(bool val) { reverseDepth = val; }
+        bool getElevations() const { return elevations; }
+        void setElevations(bool val) { elevations = val; }
         vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
         vsg::ref_ptr<TileReaderVOE> tileReader;
         std::string projection;

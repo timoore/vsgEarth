@@ -50,16 +50,10 @@ namespace voe
         mutable std::mutex statsMutex;
         mutable uint64_t numTilesRead{0};
         mutable double totalTimeReadingTiles{0.0};
-        bool getReverseDepth() const { return reverseDepth; }
-        void setReverseDepth(bool val) { reverseDepth = val; }
-        bool getElevations() const { return elevations; }
-        void setElevations(bool val) { elevations = val; }
         SimpleLight simState;
     protected:
         vsg::ref_ptr<vsg::Object> read_root(vsg::ref_ptr<const vsg::Options> options = {}) const;
         vsg::ref_ptr<vsg::Object> read_subtile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options = {}) const;
         vsg::observer_ptr<TerrainEngineVOE> terrainEngine;
-        bool reverseDepth = true;
-        bool elevations = true;
     };
 }

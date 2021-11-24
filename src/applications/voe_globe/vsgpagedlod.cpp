@@ -67,7 +67,7 @@ int main(int argc, char** argv)
         terrainEngine->init(options, arguments);
 
         windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
-        terrainEngine->tileReader->setReverseDepth(true);
+        terrainEngine->setReverseDepth(true);
 
         // load the root tile.
         auto vsg_scene = terrainEngine->createScene(options);
