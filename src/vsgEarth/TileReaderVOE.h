@@ -10,7 +10,7 @@
 
 // Use osgEarth as a tile source
 
-namespace voe
+namespace osgEarth
 {
     class TerrainEngineVOE;
     struct TileParams

@@ -2,9 +2,9 @@
 
 #include "VoeLOD.h"
 
-using namespace voe;
+using namespace osgEarth;
 
-TileStatus voe::getTileStatus(const vsg::Node* node)
+TileStatus osgEarth::getTileStatus(const vsg::Node* node)
 {
     TileStatus result = Valid;
     if (!node->getValue("voe_status", result))
@@ -17,7 +17,7 @@ TileStatus voe::getTileStatus(const vsg::Node* node)
     }
 }
 
-void voe::setTileStatus(vsg::Node* node, TileStatus status)
+void osgEarth::setTileStatus(vsg::Node* node, TileStatus status)
 {
     node->setValue("voe_status", status);
 }

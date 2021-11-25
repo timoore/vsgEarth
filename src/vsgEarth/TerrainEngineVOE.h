@@ -12,7 +12,7 @@
 #include "TileReaderVOE.h"
 #include "VoeSim.h"
 
-namespace voe
+namespace osgEarth
 {
     class VSGEARTH_EXPORT TerrainEngineVOE : public vsg::Inherit<vsg::Object, TerrainEngineVOE>
     {
@@ -27,10 +27,11 @@ namespace voe
         };
 
         TerrainEngineVOE();
-        void init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& arguments);
+        osgEarth::MapNode* init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& arguments);
         vsg::ref_ptr<vsg::Node> createScene(vsg::ref_ptr<vsg::Options> options);
         vsg::ref_ptr<vsg::Node> createTile(const osgEarth::TileKey& key,
                                            vsg::ref_ptr<const vsg::Options> options) const;
+        void update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera);
         osgEarth::Map* getMap() { return mapNode->getMap(); }
         const osgEarth::Map* getMap() const { return mapNode->getMap(); }
         bool getReverseDepth() const { return reverseDepth; }

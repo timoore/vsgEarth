@@ -4,7 +4,7 @@
 
 #include <vsg/nodes/PagedLOD.h>
 
-namespace voe
+namespace osgEarth
 {
     enum TileStatus
     {

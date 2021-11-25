@@ -11,7 +11,7 @@
 
 #include <vsgEarth/TerrainEngineVOE.h>
 
-using namespace voe;
+using namespace osgEarth;
 
 int main(int argc, char** argv)
 {
@@ -203,15 +203,8 @@ int main(int argc, char** argv)
             viewer->handleEvents();
 
             viewer->update();
-
-            vsg::dmat4 viewMatrix = camera->viewMatrix->transform();
-            terrainEngine->simState.setEyeDirection(viewMatrix);
-            // XXX Check if this is still needed
-            viewer->waitForFences(1, 50000000);
-            terrainEngine->simState.lightValues->copyDataListToBuffers();
-            
+            terrainEngine->update(viewer, camera);
             viewer->recordAndSubmit();
-
             viewer->present();
         }
 

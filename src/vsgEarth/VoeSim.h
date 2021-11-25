@@ -4,7 +4,7 @@
 // e.g. lighting.
 #include <vsg/all.h>
 
-namespace voe
+namespace osgEarth
 {
     // The data structure passed to shaders. These values are mostly
     // vec3, but are declared vec4 to maintain alignment.

@@ -1,6 +1,6 @@
 #include "VoeSim.h"
 
-using namespace voe;
+using namespace osgEarth;
 
 // Some "sensible" defaults; direction from sun over the Atlantic Ocean
 SimpleLight::SimpleLight()

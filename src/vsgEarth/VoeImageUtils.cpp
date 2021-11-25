@@ -25,7 +25,7 @@ namespace osg2vsg
     vsg::ref_ptr<vsg::Data> convertToVsg(const osg::Image* image, bool mapRGBtoRGBAHint);
 }
 
-namespace voe
+namespace osgEarth
 {
 
     template<typename T>

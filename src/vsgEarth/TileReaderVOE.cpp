@@ -6,7 +6,7 @@
 #include <osgEarth/Notify>
 #include <stdexcept>
 
-using namespace voe;
+using namespace osgEarth;
 
 osg::ArgumentParser convertArgs(vsg::CommandLine& commandLine)
 {

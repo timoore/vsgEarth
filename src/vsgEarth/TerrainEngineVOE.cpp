@@ -3,7 +3,7 @@
 
 #include <osgEarth/Locators>
 
-using namespace voe;
+using namespace osgEarth;
 
 TerrainEngineVOE::WireframeInputHandler::WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode)
     : switchNode(switchNode), state(0)
@@ -44,7 +44,8 @@ namespace
     }
 }
 
-void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine)
+osgEarth::MapNode*
+TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine)
 {
     tileReader->terrainEngine = this;
     // Read the osgEarth arguments
@@ -53,9 +54,19 @@ void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine
     osg::ArgumentParser parser = convertArgs(commandLine);
     if (!(mapNode  = osgEarth::MapNode::load(parser)))
     {
-        throw std::runtime_error("no map");
+        return nullptr;
     }
-    const osgEarth::MapNode::Options& mapNodeOptions = const_cast<const osgEarth::MapNode*>(mapNode.get())->options();
+    else
+    {
+        return mapNode.get();
+    }
+}
+
+vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options> options)
+{
+    if (!mapNode)
+        throw std::runtime_error("no map");
+        const osgEarth::MapNode::Options& mapNodeOptions = const_cast<const osgEarth::MapNode*>(mapNode.get())->options();
     modelFactory = new osgEarth::TerrainTileModelFactory(mapNodeOptions.terrain().get());
     osgEarth::Map* map = mapNode->getMap();
     auto const& em = map->getProfile()->getSRS()->getEllipsoid();
@@ -108,12 +119,8 @@ void TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine
     normalSampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     normalSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     normalSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    
-}
 
-vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options> options)
-{
-        // set up search paths to SPIRV shaders and textures
+    // set up search paths to SPIRV shaders and textures
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
 
     // load shaders
@@ -360,4 +367,13 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
 vsg::ref_ptr<TerrainEngineVOE::WireframeInputHandler> TerrainEngineVOE::createWireframeHandler()
 {
     return WireframeInputHandler::create(sceneRootSwitch);
+}
+
+void TerrainEngineVOE::update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera)
+{
+    vsg::dmat4 viewMatrix = camera->viewMatrix->transform();
+    simState.setEyeDirection(viewMatrix);
+    // XXX Check if this is still needed
+    viewer->waitForFences(1, 50000000);
+    simState.lightValues->copyDataListToBuffers();
 }
