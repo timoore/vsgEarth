@@ -5,6 +5,8 @@
 
 #include <osgEarth/MapNode>
 #include <osgEarth/ImageLayer>
+#include <vsg/core/Inherit.h>
+#include <vsg/core/Value.h>
 
 #include "VoeSim.h"
 
@@ -13,18 +15,7 @@
 namespace osgEarth
 {
     class TerrainEngineVOE;
-    struct TileParams
-    {
-        vsg::mat4 elevationTexMatrix;
-        vsg::mat4 normalTexMatrix;
-        vsg::vec2 elevTexelCoeff;
-        vsg::vec2 padding;
-    };
 
-    struct TileParamsValue : public vsg::Inherit<vsg::Value<TileParams>, TileParamsValue>
-    {
-    };
-    
     class TileReaderVOE : public vsg::Inherit<vsg::ReaderWriter, TileReaderVOE>
     {
         friend class TerrainEngineVOE;

@@ -331,16 +331,21 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
                                                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
                                                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        auto tileParams = TileParamsValue::create();
-        // From engine_rex/TerrainCuller.cpp
+        const int numLayers = 1;
         float bias = .5;
         float tileWidth = static_cast<float>(elevData->width());
-        tileParams->value().elevTexelCoeff.set((tileWidth - (2.0*bias)) / tileWidth, bias / tileWidth);
-        // matrices are identity.
-        tileParams->value().elevationTexMatrix = vsg::mat4();
-        tileParams->value().normalTexMatrix = vsg::mat4();
+        TileParams tileParams(numLayers);
+        for (int i = 0; i < numLayers; ++i)
+        {
+            tileParams.imageTexMatrix(numLayers) = vsg::mat4();
+        }
+        tileParams.elevationTexMatrix() = vsg::mat4();
+        tileParams.normalTexMatrix() = vsg::mat4();
+        tileParams.elevTexelCoeff()[0] = (tileWidth - (2.0*bias)) / tileWidth;
+        tileParams.elevTexelCoeff()[1] = bias / tileWidth;
+
         // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
-        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams, 3);
+        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams.data, 3);
         descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout,
                                                    vsg::Descriptors{texDescriptor, elevationTexDescriptor,
                                                        normalTexDescriptor, tileParamsBuffer});

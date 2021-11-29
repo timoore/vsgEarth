@@ -14,6 +14,36 @@
 
 namespace osgEarth
 {
+    struct TileParams
+    {
+        TileParams(int numLayers)
+            : numLayers(numLayers)
+        {
+            data = vsg::vec4Array::create(4 * numLayers + 4 + 4 + 1);
+        }
+        int numLayers;
+        vsg::mat4& imageTexMatrix(int i)
+        {
+            return *reinterpret_cast<vsg::mat4*>(&(*data)[i * 4]);
+        }
+        vsg::mat4& elevationTexMatrix()
+        {
+            return *reinterpret_cast<vsg::mat4*>(&(*data)[numLayers * 4]);
+        }
+
+        vsg::mat4& normalTexMatrix()
+        {
+            return *reinterpret_cast<vsg::mat4*>(&(*data)[(numLayers + 1) * 4]);
+        }
+
+        vsg::vec2& elevTexelCoeff()
+        {
+            return *reinterpret_cast<vsg::vec2*>(&(*data)[(numLayers + 2) * 4]);
+        }
+
+        vsg::ref_ptr<vsg::vec4Array> data;
+    };
+
     class VSGEARTH_EXPORT TerrainEngineVOE : public vsg::Inherit<vsg::Object, TerrainEngineVOE>
     {
     public:

@@ -2,8 +2,6 @@
 
 #include "VoeSDK.h"
 
-layout(constant_id = 0) const uint reverseDepth = 0;
-
 layout(push_constant) uniform PushConstants {
     mat4 projection;
     mat4 modelview;
