@@ -91,12 +91,16 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
     }
 
+    vsg::DescriptorSetLayoutBindings lightsDescriptorBindings{
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
+    };
+    lightsDescriptorSetLayout = vsg::DescriptorSetLayout::create(lightsDescriptorBindings);
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };
 
     pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
-                                                                           simState.light_descriptorSetLayout},
+                                                                           lightsDescriptorSetLayout},
         pushConstantRanges);
 
     sampler = vsg::Sampler::create();
@@ -175,7 +179,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
     auto switchRoot = vsg::Switch::create();
     auto lightStateGroup = vsg::StateGroup::create();
-    auto lightDescriptorSet = vsg::DescriptorSet::create(simState.light_descriptorSetLayout,
+    auto lightDescriptorSet = vsg::DescriptorSet::create(lightsDescriptorSetLayout,
                                                          vsg::Descriptors{simState.lightValues});
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
     bindDescriptorSet->slot = 2; // XXX Why?

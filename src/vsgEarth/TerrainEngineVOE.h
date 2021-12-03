@@ -78,6 +78,7 @@ namespace osgEarth
         uint32_t mipmapLevelsHint;
     protected:
         vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
+        vsg::ref_ptr<vsg::DescriptorSetLayout> lightsDescriptorSetLayout;
         vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout;
         vsg::ref_ptr<vsg::Sampler> sampler;
         vsg::ref_ptr<vsg::Sampler> elevationSampler;

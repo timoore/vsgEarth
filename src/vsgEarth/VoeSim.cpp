@@ -12,11 +12,7 @@ SimpleLight::SimpleLight()
     setDirection(vsg::vec3(worldDirection.x, worldDirection.y, worldDirection.z));
     setColor(vsg::vec3(.8f, .8f, .8f));
     setAmbient(vsg::vec3(.2f, .2f, .2f));
-    vsg::DescriptorSetLayoutBindings light_descriptorBindings{
-        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
-        };
     lightValues = vsg::DescriptorBuffer::create(_value, 0);
-    light_descriptorSetLayout = vsg::DescriptorSetLayout::create(light_descriptorBindings);
 }
 
 void SimpleLight::setEyeDirection(const vsg::dmat4& viewMatrix)

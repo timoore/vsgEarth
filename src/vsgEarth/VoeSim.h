@@ -25,7 +25,6 @@ namespace osgEarth
     {
     public:
         vsg::ref_ptr<vsg::DescriptorBuffer> lightValues;
-        vsg::ref_ptr<vsg::DescriptorSetLayout> light_descriptorSetLayout;
         SimpleLight();
 
         vsg::ref_ptr<SimpleLightUniformValue>& value() { return _value; }
