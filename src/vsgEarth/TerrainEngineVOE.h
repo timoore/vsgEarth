@@ -1,7 +1,12 @@
 #pragma once
 
 #include <vsg/all.h>
+#include <osgEarth/VisibleLayer>
 #include <osgEarth/TerrainTileModelFactory>
+#include <vsg/core/Array.h>
+#include <vsg/core/Inherit.h>
+#include <vsg/core/Object.h>
+#include <vsg/core/ref_ptr.h>
 
 // Class responsible for assembling a tile from the osgEarth map. In practice this means that it is
 // responsible for setting up the StateGroup nodes that hold the BindGraphicsPipeline objects that
@@ -44,6 +49,61 @@ namespace osgEarth
         vsg::ref_ptr<vsg::vec4Array> data;
     };
 
+    struct LayerParams : public vsg::Inherit<vsg::Object, LayerParams>
+    {
+        LayerParams(int numLayers)
+            : numLayers(numLayers)
+        {
+            data = vsg::vec4Array::create(numLayers);
+        }
+        int numLayers;
+        
+        bool enabled(int layer) const
+        {
+            return (*data)[layer][0] == 1.0f;
+        }
+
+        void setEnabled(int layer, bool val)
+        {
+            (*data)[layer][0] = val;
+        }
+
+        float opacity(int layer) const
+        {
+            return (*data)[layer][1];
+        }
+
+        void setOpacity(int layer, float opacity)
+        {
+            (*data)[layer][1] = opacity;
+        }
+
+        ColorBlending blendMode(int layer) const
+        {
+            return (*data)[layer][2] == 0.0 ? BLEND_INTERPOLATE : BLEND_MODULATE;
+        }
+
+        void setBlendMode(int layer, ColorBlending blendMode)
+        {
+            (*data)[layer][2] = blendMode;
+        }
+        
+        vsg::ref_ptr<vsg::vec4Array> data;
+    };
+
+    struct VOELayerCallback : public VisibleLayerCallback
+    {
+        VOELayerCallback(vsg::ref_ptr<LayerParams> layerParams, int layerIdx)
+            : layerParams(layerParams), layerIdx(layerIdx)
+        {
+        }
+        vsg::ref_ptr<LayerParams> layerParams;
+        void onVisibleChanged(class VisibleLayer* layer) override;
+        void onOpacityChanged(class VisibleLayer* layer) override;
+
+        const int layerIdx;
+    };
+    
     class VSGEARTH_EXPORT TerrainEngineVOE : public vsg::Inherit<vsg::Object, TerrainEngineVOE>
     {
     public:
@@ -77,8 +137,10 @@ namespace osgEarth
         SimpleLight simState;
         uint32_t mipmapLevelsHint;
     protected:
+        void initLayers();
         vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
         vsg::ref_ptr<vsg::DescriptorSetLayout> lightsDescriptorSetLayout;
+        vsg::ref_ptr<vsg::DescriptorSetLayout> layerDescriptorSetLayout;
         vsg::ref_ptr<vsg::PipelineLayout> pipelineLayout;
         vsg::ref_ptr<vsg::Sampler> sampler;
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
@@ -87,5 +149,6 @@ namespace osgEarth
         bool reverseDepth = true;
         bool elevations = true;
         osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
+        vsg::ref_ptr<LayerParams> layerParams;
     };
 }

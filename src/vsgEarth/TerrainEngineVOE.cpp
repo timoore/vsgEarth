@@ -2,6 +2,7 @@
 #include "VoeImageUtils.h"
 
 #include <osgEarth/Locators>
+#include <vsg/state/DescriptorSetLayout.h>
 
 using namespace osgEarth;
 
@@ -22,6 +23,15 @@ void TerrainEngineVOE::WireframeInputHandler::apply(vsg::KeyPressEvent& keyPress
     }
 }
 
+void VOELayerCallback::onVisibleChanged(class VisibleLayer *layer)
+{
+    layerParams->setEnabled(layerIdx, layer->getVisible());
+}
+
+void VOELayerCallback::onOpacityChanged(class VisibleLayer *layer)
+{
+    layerParams->setOpacity(layerIdx, layer->getOpacity());
+}
 
 TerrainEngineVOE::TerrainEngineVOE()
     : tileReader(TileReaderVOE::create()), mipmapLevelsHint(16)
@@ -66,7 +76,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
 {
     if (!mapNode)
         throw std::runtime_error("no map");
-        const osgEarth::MapNode::Options& mapNodeOptions = const_cast<const osgEarth::MapNode*>(mapNode.get())->options();
+    const osgEarth::MapNode::Options& mapNodeOptions = const_cast<const osgEarth::MapNode*>(mapNode.get())->options();
     modelFactory = new osgEarth::TerrainTileModelFactory(mapNodeOptions.terrain().get());
     osgEarth::Map* map = mapNode->getMap();
     auto const& em = map->getProfile()->getSRS()->getEllipsoid();
@@ -95,6 +105,28 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
     };
     lightsDescriptorSetLayout = vsg::DescriptorSetLayout::create(lightsDescriptorBindings);
+    vsg::DescriptorSetLayoutBindings layerDescriptorBindings {
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
+    };
+    // Now the visible layers
+        LayerVector layers;
+    map->getLayers(layers);
+
+    for (LayerVector::const_iterator i = layers.begin(); i != layers.end(); ++i)
+    {
+        Layer* layer = i->get();
+
+        if (!layer->isOpen())
+            continue;
+
+        if (layer->getRenderType() != layer->RENDERTYPE_TERRAIN_SURFACE)
+            continue;
+#if 0
+        if (manifest.excludes(layer))
+            continue;
+#endif
+    }
+    layerDescriptorSetLayout =  vsg::DescriptorSetLayout::create(layerDescriptorBindings);
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };

@@ -15,10 +15,20 @@ void main()
     vec3 tangent = normalize(cross(oe_normalMapBinormal, oe_UpVectorView));
     mat3 oe_normalMapTBN = mat3(tangent, oe_normalMapBinormal, oe_UpVectorView);
     vec4 normalAndCurvature = oe_terrain_getNormalAndCurvature(oe_normalMapCoords);
-    vec3 vp_Normal = normalize( oe_normalMapTBN*normalAndCurvature.xyz );
-    vec3 illumination = voeLight.ambient.xyz;
-    illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.xyz;
-    outColor = vec4(0.0, 0.0, 0.0, 1.0);
-    outColor.xyz = texture(texSampler[0], fragTexCoord).xyz * fragColor.xyz;
-    outColor.xyz *= illumination;
+    vec3 vp_Normal = normalize( oe_normalMapTBN*normalAndCurvature.rgb );
+    vec3 illumination = voeLight.ambient.rgb;
+    illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.rgb;
+    outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    for (int i = 0; i < imageLayers; ++i)
+    {
+        if (oe_layerEnabled(i))
+        {
+            vec3 baseColor = texture(texSampler[i], fragTexCoord).rgb * fragColor.rgb;
+            vec4 layerColor = oe_blendLayerColor(vec4(baseColor, 1.0), i);
+            outColor.a = layerColor.a + outColor.a * (1 - layerColor.a);
+            outColor.rgb
+                = (layerColor.rgb * layerColor.a + outColor.rgb * outColor.a * (1.0 - layerColor.a) / outColor.a;
+        }
+    }
+    outColor.rgb *= illumination;
 }

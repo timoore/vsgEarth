@@ -44,7 +44,42 @@ vec4 oe_terrain_getNormalAndCurvature(in vec2 st)
     return oe_terrain_getNormalAndCurvatureScaled(uv_scaledBiased);
 }
 
-// Fake entry point
+bool oe_layerEnabled(int layer)
+{
+    return voeLayers.imageLayerParams[layer].x == 0.0 ? false : true;
+}
+
+float oe_layerOpacity(int layer)
+{
+    return voeLayers.imageLayerParams[layer].y;
+}
+
+int oe_layerColorBlending(int layer)
+{
+    return voeLayers.imageLayerParams[layer].z == 0.0 ? 0 : 1;
+}
+
+vec4 oe_blendLayerColor(vec4 color, int layer)
+{
+    vec4 layerColor;
+    float oe_layer_opacity = oe_layerOpacity(layer);
+    if (oe_layerColorBlending(layer) == OE_BLEND_INTERPOLATE)
+    {
+        layerColor.rgb = color.xyz;
+        layerColor.a = color.a * oe_layer_opacity;
+    }
+    else
+    {
+        vec3 rgbHi = (oe_layer_opacity > 0.0
+                      ? color.rgb * OE_MODULATION_EXPOSURE / oe_layer_opacity
+                      : vec3(1.0));
+        layerColor.rgb = mix(vec3(1.0), rgbHi, oe_layer_opacity);
+        layerColor.a = 1.0;
+    }
+    return layerColor;
+}
+
+// Fake entry point XXX Still needed, or for linking experiments that didn't work?
 
 void voeSDKFoo()
 {}
