@@ -70,6 +70,7 @@ vec4 oe_blendLayerColor(vec4 color, int layer)
     }
     else
     {
+        const float OE_MODULATION_EXPOSURE = 2.35;
         vec3 rgbHi = (oe_layer_opacity > 0.0
                       ? color.rgb * OE_MODULATION_EXPOSURE / oe_layer_opacity
                       : vec3(1.0));

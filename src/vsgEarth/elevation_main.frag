@@ -27,7 +27,7 @@ void main()
             vec4 layerColor = oe_blendLayerColor(vec4(baseColor, 1.0), i);
             outColor.a = layerColor.a + outColor.a * (1 - layerColor.a);
             outColor.rgb
-                = (layerColor.rgb * layerColor.a + outColor.rgb * outColor.a * (1.0 - layerColor.a) / outColor.a;
+                = (layerColor.rgb * layerColor.a + outColor.rgb * outColor.a * (1.0 - layerColor.a)) / outColor.a;
         }
     }
     outColor.rgb *= illumination;

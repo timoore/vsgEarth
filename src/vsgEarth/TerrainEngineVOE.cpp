@@ -1,7 +1,9 @@
 #include "TerrainEngineVOE.h"
 #include "VoeImageUtils.h"
+#include "osgEarth/ImageLayer"
 
 #include <osgEarth/Locators>
+#include <vector>
 #include <vsg/state/DescriptorSetLayout.h>
 
 using namespace osgEarth;
@@ -111,7 +113,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     // Now the visible layers
         LayerVector layers;
     map->getLayers(layers);
-
+    std::vector<ImageLayer*> imageLayers;
     for (LayerVector::const_iterator i = layers.begin(); i != layers.end(); ++i)
     {
         Layer* layer = i->get();
@@ -125,8 +127,21 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         if (manifest.excludes(layer))
             continue;
 #endif
+        ImageLayer* imageLayer = dynamic_cast<ImageLayer*>(layer);
+        if (imageLayer)
+        {
+            imageLayers.push_back(imageLayer);
+        }
     }
     layerDescriptorSetLayout =  vsg::DescriptorSetLayout::create(layerDescriptorBindings);
+    layerParams = LayerParams::create(imageLayers.size());
+    for (int i = 0; i < imageLayers.size(); ++i)
+    {
+        layerParams->setEnabled(i, imageLayers[i]->getVisible());
+        layerParams->setOpacity(i, imageLayers[i]->getOpacity());
+        layerParams->setBlendMode(i, imageLayers[i]->getColorBlending());
+        imageLayers[i]->Layer::addCallback(new VOELayerCallback(layerParams, i));
+    }
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };
