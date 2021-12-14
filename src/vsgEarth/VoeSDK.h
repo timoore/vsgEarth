@@ -29,7 +29,7 @@ layout(set = 1, binding = 0) uniform VOELight {
 // imageLayerParams[0] - enabled
 // imageLayerParams[1] - opacity
 // imageLayerParams[2] - blend mode: 0 - BLEND_INTERPOLATE, 1 - BLEND_MODULATE
-layout(set = 1, binding = 2) uniform VOELayers {
+layout(set = 1, binding = 1) uniform VOELayers {
     vec4 imageLayerParams[imageLayers];
 } voeLayers;
 

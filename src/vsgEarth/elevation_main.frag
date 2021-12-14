@@ -25,6 +25,7 @@ void main()
         {
             vec3 baseColor = texture(texSampler[i], fragTexCoord).rgb * fragColor.rgb;
             vec4 layerColor = oe_blendLayerColor(vec4(baseColor, 1.0), i);
+            // formulae for blending with destination alpha
             outColor.a = layerColor.a + outColor.a * (1 - layerColor.a);
             outColor.rgb
                 = (layerColor.rgb * layerColor.a + outColor.rgb * outColor.a * (1.0 - layerColor.a)) / outColor.a;

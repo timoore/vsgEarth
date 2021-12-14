@@ -2,8 +2,10 @@
 #include "VoeImageUtils.h"
 #include "osgEarth/ImageLayer"
 
+#include <cstdint>
 #include <osgEarth/Locators>
 #include <vector>
+#include <vsg/core/Data.h>
 #include <vsg/state/DescriptorSetLayout.h>
 
 using namespace osgEarth;
@@ -36,7 +38,7 @@ void VOELayerCallback::onOpacityChanged(class VisibleLayer *layer)
 }
 
 TerrainEngineVOE::TerrainEngineVOE()
-    : tileReader(TileReaderVOE::create()), mipmapLevelsHint(16)
+    : tileReader(TileReaderVOE::create()), mipmapLevelsHint(16), numImageLayers(0)
 {
     // XXX I'm not clear on what would happen if one tries to create an observer_ptr in an
     // unreferenced object, like TerrainEngineVOE is inside this constructor. Therefore, defer
@@ -85,31 +87,16 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     ellipsoidModel = vsg::EllipsoidModel::create(em.getRadiusEquator(), em.getRadiusPolar());
 
     // set up graphics pipeline
-    vsg::DescriptorSetLayoutBindings descriptorBindings{
-        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-    };
-    vsg::DescriptorSetLayoutBindings elevationDescriptorBindings{
-        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
-        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}, // normal texture
-        {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
-    };
-    if (!elevations)
-    {
-        descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);        
-    }
-    else
-    {
-        descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
-    }
 
-    vsg::DescriptorSetLayoutBindings lightsDescriptorBindings{
-        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
+    vsg::DescriptorSetLayoutBindings globalDescriptorBindings{
+        // lights
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+        // layer parameters
+        { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } 
     };
-    lightsDescriptorSetLayout = vsg::DescriptorSetLayout::create(lightsDescriptorBindings);
-    vsg::DescriptorSetLayoutBindings layerDescriptorBindings {
-        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }, 
-    };
+
+    auto globalDescriptorSetLayout = vsg::DescriptorSetLayout::create(globalDescriptorBindings);
+
     // Now the visible layers
         LayerVector layers;
     map->getLayers(layers);
@@ -123,31 +110,49 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
 
         if (layer->getRenderType() != layer->RENDERTYPE_TERRAIN_SURFACE)
             continue;
-#if 0
-        if (manifest.excludes(layer))
-            continue;
-#endif
+
         ImageLayer* imageLayer = dynamic_cast<ImageLayer*>(layer);
         if (imageLayer)
         {
             imageLayers.push_back(imageLayer);
         }
     }
-    layerDescriptorSetLayout =  vsg::DescriptorSetLayout::create(layerDescriptorBindings);
-    layerParams = LayerParams::create(imageLayers.size());
-    for (int i = 0; i < imageLayers.size(); ++i)
+     numImageLayers= imageLayers.size();
+    layerParams = LayerParams::create(numImageLayers);
+    for (int i = 0; i < numImageLayers; ++i)
     {
         layerParams->setEnabled(i, imageLayers[i]->getVisible());
         layerParams->setOpacity(i, imageLayers[i]->getOpacity());
         layerParams->setBlendMode(i, imageLayers[i]->getColorBlending());
         imageLayers[i]->Layer::addCallback(new VOELayerCallback(layerParams, i));
     }
+
+    vsg::DescriptorSetLayoutBindings descriptorBindings{
+        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, numImageLayers, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
+    };
+    vsg::DescriptorSetLayoutBindings elevationDescriptorBindings{
+        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, numImageLayers, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        // Elevation texture
+        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},
+        // normal texture
+        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
+    };
+    if (!elevations)
+    {
+        descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+    }
+    else
+    {
+        descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
+    }
+
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };
 
     pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
-                                                                           lightsDescriptorSetLayout},
+                                                                           globalDescriptorSetLayout},
         pushConstantRanges);
 
     sampler = vsg::Sampler::create();
@@ -198,12 +203,14 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     };
 
     auto depthStencilState = vsg::DepthStencilState::create();
+    vsg::ShaderStage::SpecializationConstants specializationConstants{
+        {0, vsg::uintValue::create(reverseDepth)},
+        {1, vsg::uintValue::create(numImageLayers)}
+    };
+    vertexShader->specializationConstants = specializationConstants;
+    fragmentShader->specializationConstants = specializationConstants;
     if (reverseDepth)
     {
-        vsg::ShaderStage::SpecializationConstants specializationConstants{
-        {0, vsg::uintValue::create(1)}
-        };
-        vertexShader->specializationConstants = specializationConstants;
         depthStencilState->depthCompareOp = VK_COMPARE_OP_GREATER;
     }
     vsg::GraphicsPipelineStates fillPipelineStates{
@@ -226,8 +233,8 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
     auto switchRoot = vsg::Switch::create();
     auto lightStateGroup = vsg::StateGroup::create();
-    auto lightDescriptorSet = vsg::DescriptorSet::create(lightsDescriptorSetLayout,
-                                                         vsg::Descriptors{simState.lightValues});
+    auto lightDescriptorSet = vsg::DescriptorSet::create(globalDescriptorSetLayout,
+                                                         vsg::Descriptors{simState.lightValues, layerParams->layerParamsDescriptor});
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
     bindDescriptorSet->slot = 2; // XXX Why?
     lightStateGroup->add(bindDescriptorSet);
@@ -338,31 +345,36 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     osg::ref_ptr<osgEarth::TerrainTileModel> tileModel
         = modelFactory->createTileModel(getMap(), key, osgEarth::CreateTileManifest(),
                                         nullptr, nullptr);
-    auto& colorLayerModel = *tileModel->colorLayers().begin();
-    osg::Texture* texture = nullptr;
-    osg::RefMatrixf* textureMatrix = nullptr;
-    if (colorLayerModel.valid())
+    vsg::ImageInfoList imageTextures;
+    uint8_t imageOrigin = vsg::BOTTOM_LEFT; // XXX huge hack; should probably just decide on
+                                                // OpenGL order
+    for (auto& colorLayerModel : tileModel->colorLayers())
     {
-        osgEarth::TerrainTileImageLayerModel* imageLayerModel
-            = dynamic_cast<osgEarth::TerrainTileImageLayerModel*>(colorLayerModel.get());
-        if (imageLayerModel && imageLayerModel->getTexture())
+        osg::Texture* texture = nullptr;
+        osg::RefMatrixf* textureMatrix = nullptr;
+        if (colorLayerModel.valid())
         {
-            texture = imageLayerModel->getTexture();
-            textureMatrix = imageLayerModel->getMatrix();
+            osgEarth::TerrainTileImageLayerModel* imageLayerModel
+                = dynamic_cast<osgEarth::TerrainTileImageLayerModel*>(colorLayerModel.get());
+            if (imageLayerModel && imageLayerModel->getTexture())
+            {
+                texture = imageLayerModel->getTexture();
+                textureMatrix = imageLayerModel->getMatrix(); // XXX do something with this
+            }
+            auto data = convertToVsg(texture->getImage(0), true);
+            imageOrigin = data->getLayout().origin;
+            imageTextures.push_back(vsg::ImageInfo::create(sampler, data));
         }
     }
-    if (!texture)
+    if (imageTextures.empty())
         return {};
     // create StateGroup to bind any texture state
     auto scenegraph = vsg::StateGroup::create();
-    auto data = convertToVsg(texture->getImage(0), true);
     osgEarth::GeoPoint centroid = key.getExtent().getCentroid();
     auto localToWorld = ellipsoidModel->computeLocalToWorldTransform(vsg::dvec3(centroid.y(), centroid.x(), 0.0));
     auto worldToLocal = vsg::inverse(localToWorld);
 
     // create texture image and associated DescriptorSets and binding
-    vsg::ImageInfoList imageTextures;
-    imageTextures.push_back(vsg::ImageInfo::create(sampler, data));
     auto texDescriptor = vsg::DescriptorImage::create(imageTextures, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
@@ -382,13 +394,12 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
                                                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
                                                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        const int numLayers = 1;
         float bias = .5;
         float tileWidth = static_cast<float>(elevData->width());
-        TileParams tileParams(numLayers);
-        for (int i = 0; i < numLayers; ++i)
+        TileParams tileParams(numImageLayers);
+        for (int i = 0; i < numImageLayers; ++i)
         {
-            tileParams.imageTexMatrix(numLayers) = vsg::mat4();
+            tileParams.imageTexMatrix(i) = vsg::mat4();
         }
         tileParams.elevationTexMatrix() = vsg::mat4();
         tileParams.normalTexMatrix() = vsg::mat4();
@@ -413,7 +424,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
 
     // add transform to root of the scene graph
     scenegraph->addChild(transform);
-    auto drawCommands = createTileGeometry(key, 32, data->getLayout().origin);
+    auto drawCommands = createTileGeometry(key, 32, imageOrigin);
     // add drawCommands to transform
     transform->addChild(drawCommands);
     return scenegraph;
@@ -432,4 +443,5 @@ void TerrainEngineVOE::update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg
     // XXX Check if this is still needed
     viewer->waitForFences(1, 50000000);
     simState.lightValues->copyDataListToBuffers();
+    layerParams->layerParamsDescriptor->copyDataListToBuffers();
 }

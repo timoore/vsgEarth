@@ -7,6 +7,8 @@
 #include <vsg/core/Inherit.h>
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/state/Descriptor.h>
+#include <vsg/state/DescriptorBuffer.h>
 
 // Class responsible for assembling a tile from the osgEarth map. In practice this means that it is
 // responsible for setting up the StateGroup nodes that hold the BindGraphicsPipeline objects that
@@ -55,6 +57,7 @@ namespace osgEarth
             : numLayers(numLayers)
         {
             data = vsg::vec4Array::create(numLayers);
+            layerParamsDescriptor = vsg::DescriptorBuffer::create(data, 1);
         }
         int numLayers;
         
@@ -89,6 +92,7 @@ namespace osgEarth
         }
         
         vsg::ref_ptr<vsg::vec4Array> data;
+        vsg::ref_ptr<vsg::DescriptorBuffer> layerParamsDescriptor;
     };
 
     struct VOELayerCallback : public VisibleLayerCallback
@@ -136,6 +140,7 @@ namespace osgEarth
         osg::ref_ptr<osgEarth::MapNode> mapNode;
         SimpleLight simState;
         uint32_t mipmapLevelsHint;
+        uint32_t numImageLayers;
     protected:
         void initLayers();
         vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
