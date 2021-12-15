@@ -51,11 +51,11 @@ macro(make_shader SHADER_SOURCE SHADER_OUTPUT)
   DEPENDS ${SHADER_SOURCE} ${GLSL_FILES})
 
   add_custom_command(OUTPUT ${SHADER_OUTPUT}.spv
-  COMMAND ${GLSLC} ${SHADER_OUTPUT} -o ${SHADER_OUTPUT}.spv
+  COMMAND ${GLSLC} -I${CMAKE_CURRENT_SOURCE_DIR} -o ${SHADER_OUTPUT}.spv  ${SHADER_OUTPUT}
   DEPENDS ${SHADER_OUTPUT} ${CMAKE_CURRENT_SOURCE_DIR}/VoeSDK.h)
 endmacro(make_shader)
 
-make_shader(${CMAKE_CURRENT_SOURCE_DIR}/reverse_depth.vert ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert)
-make_shader(${CMAKE_CURRENT_SOURCE_DIR}/elevation_main.frag ${CMAKE_CURRENT_SOURCE_DIR}/elevation.frag)
+make_shader(${CMAKE_CURRENT_SOURCE_DIR}/reverse_depth.vert ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert)
+make_shader(${CMAKE_CURRENT_SOURCE_DIR}/elevation_main.frag ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag)
 
-add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/elevation.vert.spv ${CMAKE_CURRENT_SOURCE_DIR}/elevation.frag.spv)
+add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert.spv ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag.spv)
