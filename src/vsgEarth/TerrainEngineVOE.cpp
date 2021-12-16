@@ -117,7 +117,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
             imageLayers.push_back(imageLayer);
         }
     }
-     numImageLayers= imageLayers.size();
+    numImageLayers= imageLayers.size();
     layerParams = LayerParams::create(numImageLayers);
     for (int i = 0; i < numImageLayers; ++i)
     {
@@ -405,6 +405,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
         tileParams.normalTexMatrix() = vsg::mat4();
         tileParams.elevTexelCoeff()[0] = (tileWidth - (2.0*bias)) / tileWidth;
         tileParams.elevTexelCoeff()[1] = bias / tileWidth;
+        tileParams.imageLayers() = numImageLayers;
 
         // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
         auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams.data, 3);

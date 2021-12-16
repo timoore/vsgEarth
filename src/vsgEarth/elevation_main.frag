@@ -19,7 +19,7 @@ void main()
     vec3 illumination = voeLight.ambient.rgb;
     illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.rgb;
     outColor = vec4(1.0, 1.0, 1.0, 1.0);
-    for (int i = 0; i < imageLayers; ++i)
+    for (int i = 0; i < voeTile.imageLayers.x; ++i)
     {
         if (oe_layerEnabled(i))
         {

@@ -4,19 +4,26 @@
 #define VOESDK_H 1
 
 layout(constant_id = 0) const uint reverseDepth = 0;
-layout(constant_id = 1) const uint imageLayers = 1;
+layout(constant_id = 1) const uint maxImageLayers = 1;
 
 
 
-layout(binding = 0) uniform sampler2D texSampler[imageLayers]; // only available in fragment shader
+layout(binding = 0) uniform sampler2D texSampler[maxImageLayers]; // only available in fragment shader
 layout(binding = 1) uniform sampler2D elevationTex;
 layout(binding = 2) uniform sampler2D normalTex;
 
+// This declaration would not work until imageTexMatrix was put at the end. Apparently the
+// specialization constant cannot change the offsets of values in the structure, even though no
+// error or warning is produced.
+// https://stackoverflow.com/questions/52191104/specialization-constant-used-for-array-size
+// describes the problem; although the context there is SPIRV in OpenGL, the issue is the same.
+
 layout(set = 0, binding = 3) uniform VOETile {
-    mat4 imageTexMatrix[imageLayers];
     mat4 elevationTexMatrix;
     mat4 normalTexMatrix;
-    vec2 elevTexelCoeff;
+    vec4 elevTexelCoeff;
+    uvec4 imageLayers;
+    mat4 imageTexMatrix[maxImageLayers];
 } voeTile;
 
 layout(set = 1, binding = 0) uniform VOELight {
@@ -30,7 +37,7 @@ layout(set = 1, binding = 0) uniform VOELight {
 // imageLayerParams[1] - opacity
 // imageLayerParams[2] - blend mode: 0 - BLEND_INTERPOLATE, 1 - BLEND_MODULATE
 layout(set = 1, binding = 1) uniform VOELayers {
-    vec4 imageLayerParams[imageLayers];
+    vec4 imageLayerParams[maxImageLayers];
 } voeLayers;
 
 #define OE_BLEND_INTERPOLATE 0
