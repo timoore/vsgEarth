@@ -19,12 +19,12 @@ void main()
     vec3 illumination = voeLight.ambient.rgb;
     illumination += clamp(dot(vp_Normal, -voeLight.direction.xyz), 0.0, 1.0) * voeLight.color.rgb;
     outColor = vec4(1.0, 1.0, 1.0, 1.0);
-    for (int i = 0; i < voeTile.imageLayers.x; ++i)
+    for (int i = 0; i < voeTile.numImageLayers; ++i)
     {
         if (oe_layerEnabled(i))
         {
-            vec3 baseColor = texture(texSampler[i], fragTexCoord).rgb * fragColor.rgb;
-            vec4 layerColor = oe_blendLayerColor(vec4(baseColor, 1.0), i);
+            vec4 baseColor = texture(texSampler[i], fragTexCoord) * vec4(fragColor.rgb, 1.0);
+            vec4 layerColor = oe_blendLayerColor(baseColor, i);
             // formulae for blending with destination alpha
             outColor.a = layerColor.a + outColor.a * (1 - layerColor.a);
             outColor.rgb

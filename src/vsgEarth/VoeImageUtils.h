@@ -2,8 +2,10 @@
 
 // Wrapper around vsgXchange functions
 
+#include <osg/Quat>
 #include <vsg/all.h>
 #include <osg/Image>
+#include <vsg/maths/mat4.h>
 
 namespace osgEarth
 {
@@ -36,9 +38,33 @@ namespace osgEarth
         using type = vsg::dvec2;
     };
 
+    template <>
+    struct VsgType<osg::Matrixf>
+    {
+        using type = vsg::mat4;
+    };
+
+    template <>
+    struct VsgType<osg::Matrixd>
+    {
+        using type = vsg::dmat4;
+    };
+
     template <typename T>
     const typename VsgType<T>::type& toVsg(const T& val)
     {
         return *reinterpret_cast<const typename VsgType<T>::type*>(&val);
+    }
+
+    template <typename T>
+    const typename VsgType<T>::type* toVsg(const T* val)
+    {
+        return reinterpret_cast<const typename VsgType<T>::type*>(val);
+    }
+
+    template <typename T>
+    typename VsgType<T>::type* toVsg(T* val)
+    {
+        return reinterpret_cast<typename VsgType<T>::type*>(val);
     }
 }

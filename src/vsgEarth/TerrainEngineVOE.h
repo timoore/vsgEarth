@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include <vsg/all.h>
 #include <osgEarth/VisibleLayer>
 #include <osgEarth/TerrainTileModelFactory>
@@ -27,7 +28,7 @@ namespace osgEarth
         TileParams(int maxLayers)
             : maxLayers(maxLayers)
         {
-            data = vsg::vec4Array::create(4 * maxLayers + 4 + 4 + 1 + 1);
+            data = vsg::vec4Array::create(4 + 1 + 1 + 5 * maxLayers);
         }
         int maxLayers;
 
@@ -36,32 +37,34 @@ namespace osgEarth
             return *reinterpret_cast<vsg::mat4*>(&(*data)[0]);
         }
 
-        vsg::mat4& normalTexMatrix()
-        {
-            return *reinterpret_cast<vsg::mat4*>(&(*data)[4]);
-        }
 
         vsg::vec2& elevTexelCoeff()
         {
-            return *reinterpret_cast<vsg::vec2*>(&(*data)[8]);
+            return *reinterpret_cast<vsg::vec2*>(&(*data)[4]);
         }
 
-        uint32_t& imageLayers()
+        uint32_t& numImageLayers()
         {
-            return *reinterpret_cast<uint32_t*>(&(*data)[9]);
+            return *reinterpret_cast<uint32_t*>(&(*data)[5]);
         }
 
         vsg::mat4& imageTexMatrix(int i)
         {
-            return *reinterpret_cast<vsg::mat4*>(&(*data)[10 + i * 4]);
+            return *reinterpret_cast<vsg::mat4*>(&(*data)[6 + i * 5]);
+        }
+
+        uint32_t& layerIndex(int i)
+        {
+            return *reinterpret_cast<uint32_t*>(&(*data)[6 + i * 5 + 4]);
         }
         vsg::ref_ptr<vsg::vec4Array> data;
     };
 
+    // Layer parameters for the whole map
     struct LayerParams : public vsg::Inherit<vsg::Object, LayerParams>
     {
         LayerParams(int numLayers)
-            : numLayers(numLayers)
+            : numLayers(numLayers), layerUIDs(numLayers, 0)
         {
             data = vsg::vec4Array::create(numLayers);
             layerParamsDescriptor = vsg::DescriptorBuffer::create(data, 1);
@@ -97,7 +100,7 @@ namespace osgEarth
         {
             (*data)[layer][2] = blendMode;
         }
-        
+        std::vector<UID> layerUIDs;
         vsg::ref_ptr<vsg::vec4Array> data;
         vsg::ref_ptr<vsg::DescriptorBuffer> layerParamsDescriptor;
     };

@@ -37,8 +37,8 @@ vec4 oe_terrain_getNormalAndCurvatureScaled(in vec2 uv_scaledBiased)
 vec4 oe_terrain_getNormalAndCurvature(in vec2 st)
 {
     vec2 uv_scaledBiased = st
-        * voeTile.elevTexelCoeff.x * voeTile.normalTexMatrix[0][0]
-        + voeTile.elevTexelCoeff.x * voeTile.normalTexMatrix[3].st
+        * voeTile.elevTexelCoeff.x * voeTile.elevationTexMatrix[0][0]
+        + voeTile.elevTexelCoeff.x * voeTile.elevationTexMatrix[3].st
         + voeTile.elevTexelCoeff.y;
 
     return oe_terrain_getNormalAndCurvatureScaled(uv_scaledBiased);
@@ -46,17 +46,20 @@ vec4 oe_terrain_getNormalAndCurvature(in vec2 st)
 
 bool oe_layerEnabled(int layer)
 {
-    return voeLayers.imageLayerParams[layer].x == 0.0 ? false : true;
+    uint mapLayer = voeTile.imageLayers[layer].layerIndex;
+    return voeLayers.imageLayerParams[mapLayer].x == 0.0 ? false : true;
 }
 
 float oe_layerOpacity(int layer)
 {
-    return voeLayers.imageLayerParams[layer].y;
+    uint mapLayer = voeTile.imageLayers[layer].layerIndex;
+    return voeLayers.imageLayerParams[mapLayer].y;
 }
 
 int oe_layerColorBlending(int layer)
 {
-    return voeLayers.imageLayerParams[layer].z == 0.0 ? 0 : 1;
+    uint mapLayer = voeTile.imageLayers[layer].layerIndex;
+    return voeLayers.imageLayerParams[mapLayer].z == 0.0 ? 0 : 1;
 }
 
 vec4 oe_blendLayerColor(vec4 color, int layer)
@@ -79,8 +82,3 @@ vec4 oe_blendLayerColor(vec4 color, int layer)
     }
     return layerColor;
 }
-
-// Fake entry point XXX Still needed, or for linking experiments that didn't work?
-
-void voeSDKFoo()
-{}

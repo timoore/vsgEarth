@@ -12,18 +12,26 @@ layout(binding = 0) uniform sampler2D texSampler[maxImageLayers]; // only availa
 layout(binding = 1) uniform sampler2D elevationTex;
 layout(binding = 2) uniform sampler2D normalTex;
 
-// This declaration would not work until imageTexMatrix was put at the end. Apparently the
-// specialization constant cannot change the offsets of values in the structure, even though no
-// error or warning is produced.
+struct TileImageLayer
+{
+    mat4 imageTexMatrix;
+    uint layerIndex;            // Layer's index in voeLayers.imageLayerParams
+    // 12 bytes padding
+};
+
+// This declaration will not work unless the variable array (imageLayers) is put at the
+// end. Apparently the specialization constant cannot change the offsets of values in the structure,
+// even though no error or warning is produced.
+//
 // https://stackoverflow.com/questions/52191104/specialization-constant-used-for-array-size
 // describes the problem; although the context there is SPIRV in OpenGL, the issue is the same.
 
 layout(set = 0, binding = 3) uniform VOETile {
     mat4 elevationTexMatrix;
-    mat4 normalTexMatrix;
     vec4 elevTexelCoeff;
-    uvec4 imageLayers;
-    mat4 imageTexMatrix[maxImageLayers];
+    uint numImageLayers;          // Number of image layers in this tile
+    // 12 bytes padding
+    TileImageLayer imageLayers[maxImageLayers];
 } voeTile;
 
 layout(set = 1, binding = 0) uniform VOELight {
@@ -43,6 +51,7 @@ layout(set = 1, binding = 1) uniform VOELayers {
 #define OE_BLEND_INTERPOLATE 0
 #define OE_BLEND_MODULATE 1
 
+// layer parameter is index into the tile's layers i.e. the list in voeTile
 bool oe_layerEnabled(int layer);
 float oe_layerOpacity(int layer);
 int oe_layerColorBlending(int layer);

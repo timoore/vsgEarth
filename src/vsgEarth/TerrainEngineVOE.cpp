@@ -2,11 +2,15 @@
 #include "VoeImageUtils.h"
 #include "osgEarth/ImageLayer"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <osgEarth/Locators>
 #include <vector>
 #include <vsg/core/Data.h>
+#include <vsg/core/ref_ptr.h>
 #include <vsg/state/DescriptorSetLayout.h>
+#include <vsg/state/ImageInfo.h>
 
 using namespace osgEarth;
 
@@ -121,6 +125,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     layerParams = LayerParams::create(numImageLayers);
     for (int i = 0; i < numImageLayers; ++i)
     {
+        layerParams->layerUIDs[i] = imageLayers[i]->getUID();
         layerParams->setEnabled(i, imageLayers[i]->getVisible());
         layerParams->setOpacity(i, imageLayers[i]->getOpacity());
         layerParams->setBlendMode(i, imageLayers[i]->getColorBlending());
@@ -339,13 +344,26 @@ vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey,
     return drawCommands;
 }
 
+// per-tile image layer data
+struct ImageLayerTileData
+{
+    ImageLayerTileData(vsg::ref_ptr<vsg::ImageInfo> info,
+                       osg::ref_ptr<osg::RefMatrixf> refMatrix,
+                       UID uid)
+        : info(info), refMatrix(refMatrix), uid(uid)
+    {}
+    vsg::ref_ptr<vsg::ImageInfo> info;
+    osg::ref_ptr<osg::RefMatrixf> refMatrix;
+    UID uid;
+};
+
 vsg::ref_ptr<vsg::Node>
 TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vsg::Options> options) const
 {
     osg::ref_ptr<osgEarth::TerrainTileModel> tileModel
         = modelFactory->createTileModel(getMap(), key, osgEarth::CreateTileManifest(),
                                         nullptr, nullptr);
-    vsg::ImageInfoList imageTextures;
+    std::vector<ImageLayerTileData> tileData;
     uint8_t imageOrigin = vsg::BOTTOM_LEFT; // XXX huge hack; should probably just decide on
                                                 // OpenGL order
     for (auto& colorLayerModel : tileModel->colorLayers())
@@ -360,13 +378,14 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
             {
                 texture = imageLayerModel->getTexture();
                 textureMatrix = imageLayerModel->getMatrix(); // XXX do something with this
+                auto data = convertToVsg(texture->getImage(0), true);
+                imageOrigin = data->getLayout().origin;
+                tileData.push_back(ImageLayerTileData(vsg::ImageInfo::create(sampler, data), textureMatrix,
+                                                      imageLayerModel->getLayer()->getUID()));
             }
-            auto data = convertToVsg(texture->getImage(0), true);
-            imageOrigin = data->getLayout().origin;
-            imageTextures.push_back(vsg::ImageInfo::create(sampler, data));
         }
     }
-    if (imageTextures.empty())
+    if (tileData.empty())
         return {};
     // create StateGroup to bind any texture state
     auto scenegraph = vsg::StateGroup::create();
@@ -375,6 +394,9 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     auto worldToLocal = vsg::inverse(localToWorld);
 
     // create texture image and associated DescriptorSets and binding
+    vsg::ImageInfoList imageTextures(tileData.size());
+    std::transform(tileData.begin(), tileData.end(), imageTextures.begin(),
+                   [](const ImageLayerTileData& data) { return data.info; });
     auto texDescriptor = vsg::DescriptorImage::create(imageTextures, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
@@ -399,13 +421,31 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
         TileParams tileParams(numImageLayers);
         for (int i = 0; i < numImageLayers; ++i)
         {
-            tileParams.imageTexMatrix(i) = vsg::mat4();
+            UID uid = tileData[i].uid;
+            tileParams.imageTexMatrix(i) = *toVsg(static_cast<osg::Matrixf*>(tileData[i].refMatrix.get()));
+            auto layerItr = std::find(layerParams->layerUIDs.begin(), layerParams->layerUIDs.end(), uid);
+            if (layerItr != layerParams->layerUIDs.end())
+            {
+                tileParams.layerIndex(i) = std::distance(layerParams->layerUIDs.begin(),layerItr);
+            }
+            else
+            {
+                tileParams.layerIndex(i) = 0; // XXX Index into layerParams
+            }
         }
-        tileParams.elevationTexMatrix() = vsg::mat4();
-        tileParams.normalTexMatrix() = vsg::mat4();
+        // XXX Not sure that the elevation model ever has its own matrix
+        if (tileModel->elevationModel()->getMatrix())
+        {
+            tileParams.elevationTexMatrix()
+                = *toVsg(static_cast<osg::Matrixf*>(tileModel->elevationModel()->getMatrix()));
+        }
+        else
+        {
+            tileParams.elevationTexMatrix() = vsg::mat4();
+        }
         tileParams.elevTexelCoeff()[0] = (tileWidth - (2.0*bias)) / tileWidth;
         tileParams.elevTexelCoeff()[1] = bias / tileWidth;
-        tileParams.imageLayers() = numImageLayers;
+        tileParams.numImageLayers() = numImageLayers;
 
         // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
         auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams.data, 3);
