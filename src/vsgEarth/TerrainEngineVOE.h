@@ -11,6 +11,7 @@
 #include <vsg/core/ref_ptr.h>
 #include <vsg/state/Descriptor.h>
 #include <vsg/state/DescriptorBuffer.h>
+#include <vsg/state/DescriptorImage.h>
 
 // Class responsible for assembling a tile from the osgEarth map. In practice this means that it is
 // responsible for setting up the StateGroup nodes that hold the BindGraphicsPipeline objects that
@@ -165,5 +166,7 @@ namespace osgEarth
         bool elevations = true;
         osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
         vsg::ref_ptr<LayerParams> layerParams;
+        vsg::ref_ptr<vsg::DescriptorImage> emptyElevationDescImage;
+        vsg::ref_ptr<vsg::DescriptorImage> emptyNormalDescImage;
     };
 }

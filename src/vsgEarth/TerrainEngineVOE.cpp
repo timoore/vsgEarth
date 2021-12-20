@@ -1,5 +1,6 @@
 #include "TerrainEngineVOE.h"
 #include "VoeImageUtils.h"
+#include "osgEarth/Elevation"
 #include "osgEarth/ImageLayer"
 
 #include <algorithm>
@@ -181,6 +182,14 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     normalSampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     normalSampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
+    osg::Texture* emptyOsgElevation = createEmptyElevationTexture();
+    auto emptyElevData = convertToVsg(emptyOsgElevation->getImage(0));
+    emptyElevationDescImage = vsg::DescriptorImage::create(elevationSampler, emptyElevData, 1, 0,
+                                                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    osg::Texture* emptyOsgNormal = createEmptyNormalMapTexture();
+    auto emptyNormalData = convertToVsg(emptyOsgNormal->getImage(0));
+    emptyNormalDescImage = vsg::DescriptorImage::create(normalSampler, emptyNormalData, 2, 0,
+                                                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     // set up search paths to SPIRV shaders and textures
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
 
@@ -403,21 +412,22 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;
     if (elevations)
     {
-        if (!tileModel->elevationModel().valid() || !tileModel->elevationModel()->getTexture())
+        vsg::ref_ptr<vsg::DescriptorImage> elevationTexDescriptor = emptyElevationDescImage;
+        vsg::ref_ptr<vsg::DescriptorImage> normalTexDescriptor = emptyNormalDescImage;
+        const float bias = .5;
+        float tileWidth = 1.0f;
+        if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getTexture())
         {
-            // XXX Pretty harsh
-            return {};
+            elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
+            elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
+            auto elevData = convertToVsg(elevationTexture->getImage());
+            auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
+            elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
+                                                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
+                                                               VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            tileWidth = static_cast<float>(elevData->width());
         }
-        elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
-        elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
-        auto elevData = convertToVsg(elevationTexture->getImage());
-        auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
-        auto elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
-                                                                   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        auto normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
-                                                          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        float bias = .5;
-        float tileWidth = static_cast<float>(elevData->width());
         TileParams tileParams(numImageLayers);
         for (int i = 0; i < numImageLayers; ++i)
         {
@@ -434,7 +444,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
             }
         }
         // XXX Not sure that the elevation model ever has its own matrix
-        if (tileModel->elevationModel()->getMatrix())
+        if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getMatrix())
         {
             tileParams.elevationTexMatrix()
                 = *toVsg(static_cast<osg::Matrixf*>(tileModel->elevationModel()->getMatrix()));
