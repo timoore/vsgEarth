@@ -141,8 +141,6 @@ namespace osgEarth
         const osgEarth::Map* getMap() const { return mapNode->getMap(); }
         bool getReverseDepth() const { return reverseDepth; }
         void setReverseDepth(bool val) { reverseDepth = val; }
-        bool getElevations() const { return elevations; }
-        void setElevations(bool val) { elevations = val; }
         vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
         vsg::ref_ptr<TileReaderVOE> tileReader;
         std::string projection;
@@ -163,7 +161,6 @@ namespace osgEarth
         vsg::ref_ptr<vsg::Sampler> normalSampler;
         vsg::ref_ptr<vsg::Switch> sceneRootSwitch;
         bool reverseDepth = true;
-        bool elevations = true;
         osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
         vsg::ref_ptr<LayerParams> layerParams;
         vsg::ref_ptr<vsg::DescriptorImage> emptyElevationDescImage;

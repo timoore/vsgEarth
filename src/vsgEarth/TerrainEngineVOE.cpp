@@ -133,9 +133,6 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         imageLayers[i]->Layer::addCallback(new VOELayerCallback(layerParams, i));
     }
 
-    vsg::DescriptorSetLayoutBindings descriptorBindings{
-        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, numImageLayers, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr} // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-    };
     vsg::DescriptorSetLayoutBindings elevationDescriptorBindings{
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, numImageLayers, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
         // Elevation texture
@@ -144,14 +141,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
         {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
     };
-    if (!elevations)
-    {
-        descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
-    }
-    else
-    {
-        descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
-    }
+    descriptorSetLayout = vsg::DescriptorSetLayout::create(elevationDescriptorBindings);
 
     vsg::PushConstantRanges pushConstantRanges{
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
@@ -374,7 +364,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
                                         nullptr, nullptr);
     std::vector<ImageLayerTileData> tileData;
     uint8_t imageOrigin = vsg::BOTTOM_LEFT; // XXX huge hack; should probably just decide on
-                                                // OpenGL order
+    // OpenGL order
     for (auto& colorLayerModel : tileModel->colorLayers())
     {
         osg::Texture* texture = nullptr;
@@ -410,63 +400,56 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
 
     vsg::ref_ptr<vsg::DescriptorSet> descriptorSet;
     osg::ref_ptr<osgEarth::ElevationTexture> elevationTexture;
-    if (elevations)
+    vsg::ref_ptr<vsg::DescriptorImage> elevationTexDescriptor = emptyElevationDescImage;
+    vsg::ref_ptr<vsg::DescriptorImage> normalTexDescriptor = emptyNormalDescImage;
+    const float bias = .5;
+    float tileWidth = 1.0f;
+    if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getTexture())
     {
-        vsg::ref_ptr<vsg::DescriptorImage> elevationTexDescriptor = emptyElevationDescImage;
-        vsg::ref_ptr<vsg::DescriptorImage> normalTexDescriptor = emptyNormalDescImage;
-        const float bias = .5;
-        float tileWidth = 1.0f;
-        if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getTexture())
+        elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
+        elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
+        auto elevData = convertToVsg(elevationTexture->getImage());
+        auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
+        elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
+                                                              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
+                                                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        tileWidth = static_cast<float>(elevData->width());
+    }
+    TileParams tileParams(numImageLayers);
+    for (int i = 0; i < numImageLayers; ++i)
+    {
+        UID uid = tileData[i].uid;
+        tileParams.imageTexMatrix(i) = *toVsg(static_cast<osg::Matrixf*>(tileData[i].refMatrix.get()));
+        auto layerItr = std::find(layerParams->layerUIDs.begin(), layerParams->layerUIDs.end(), uid);
+        if (layerItr != layerParams->layerUIDs.end())
         {
-            elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
-            elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
-            auto elevData = convertToVsg(elevationTexture->getImage());
-            auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
-            elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
-                                                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
-                                                               VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            tileWidth = static_cast<float>(elevData->width());
-        }
-        TileParams tileParams(numImageLayers);
-        for (int i = 0; i < numImageLayers; ++i)
-        {
-            UID uid = tileData[i].uid;
-            tileParams.imageTexMatrix(i) = *toVsg(static_cast<osg::Matrixf*>(tileData[i].refMatrix.get()));
-            auto layerItr = std::find(layerParams->layerUIDs.begin(), layerParams->layerUIDs.end(), uid);
-            if (layerItr != layerParams->layerUIDs.end())
-            {
-                tileParams.layerIndex(i) = std::distance(layerParams->layerUIDs.begin(),layerItr);
-            }
-            else
-            {
-                tileParams.layerIndex(i) = 0; // XXX Index into layerParams
-            }
-        }
-        // XXX Not sure that the elevation model ever has its own matrix
-        if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getMatrix())
-        {
-            tileParams.elevationTexMatrix()
-                = *toVsg(static_cast<osg::Matrixf*>(tileModel->elevationModel()->getMatrix()));
+            tileParams.layerIndex(i) = std::distance(layerParams->layerUIDs.begin(),layerItr);
         }
         else
         {
-            tileParams.elevationTexMatrix() = vsg::mat4();
+            tileParams.layerIndex(i) = 0; // XXX Index into layerParams
         }
-        tileParams.elevTexelCoeff()[0] = (tileWidth - (2.0*bias)) / tileWidth;
-        tileParams.elevTexelCoeff()[1] = bias / tileWidth;
-        tileParams.numImageLayers() = numImageLayers;
-
-        // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
-        auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams.data, 3);
-        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout,
-                                                   vsg::Descriptors{texDescriptor, elevationTexDescriptor,
-                                                       normalTexDescriptor, tileParamsBuffer});
+    }
+    // XXX Not sure that the elevation model ever has its own matrix
+    if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getMatrix())
+    {
+        tileParams.elevationTexMatrix()
+            = *toVsg(static_cast<osg::Matrixf*>(tileModel->elevationModel()->getMatrix()));
     }
     else
     {
-        descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, vsg::Descriptors{texDescriptor});
+        tileParams.elevationTexMatrix() = vsg::mat4();
     }
+    tileParams.elevTexelCoeff()[0] = (tileWidth - (2.0*bias)) / tileWidth;
+    tileParams.elevTexelCoeff()[1] = bias / tileWidth;
+    tileParams.numImageLayers() = numImageLayers;
+
+    // XXX Sucks that you need to specify the "binding" (location) in the descriptor buffer itself.
+    auto tileParamsBuffer = vsg::DescriptorBuffer::create(tileParams.data, 3);
+    descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout,
+                                               vsg::Descriptors{texDescriptor, elevationTexDescriptor,
+                                                   normalTexDescriptor, tileParamsBuffer});
     auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
     scenegraph->add(bindDescriptorSets);
 
