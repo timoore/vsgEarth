@@ -29,8 +29,8 @@ TileReaderVOE::TileReaderVOE()
 
 vsg::ref_ptr<vsg::Object> TileReaderVOE::read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
 {
-    auto extension = vsg::fileExtension(filename);
-    if (extension != "tile")
+    auto extension = vsg::lowerCaseFileExtension(filename);
+    if (extension != ".tile")
         return {};
     vsg::ref_ptr<TerrainEngineVOE> te(terrainEngine);
     if (!te)
