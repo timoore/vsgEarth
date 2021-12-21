@@ -8,27 +8,27 @@
 #include <iterator>
 #include <osgEarth/Locators>
 #include <vector>
-#include <vsg/core/Data.h>
-#include <vsg/core/ref_ptr.h>
-#include <vsg/state/DescriptorSetLayout.h>
-#include <vsg/state/ImageInfo.h>
+#include <vsg/all.h>
 
 using namespace osgEarth;
 
-TerrainEngineVOE::WireframeInputHandler::WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode)
+TerrainEngineVOE::WireframeInputHandler::WireframeInputHandler(vsg::ref_ptr<vsg::StateSwitch>& switchNode)
     : switchNode(switchNode), state(0)
 {
 }
 
 void TerrainEngineVOE::WireframeInputHandler::apply(vsg::KeyPressEvent& keyPress)
 {
-    vsg::ref_ptr<vsg::Switch> s(switchNode);
+    vsg::ref_ptr<vsg::StateSwitch> s(switchNode);
     if (!s)
         return;
     if (keyPress.keyBase == vsg::KEY_w)
     {
         state = (state + 1) % 3;
-        s->setSingleChildOn(state);
+        for (unsigned i = 0; i < 3; ++i)
+        {
+            s->children[i].mask = i == state;
+        }
     }
 }
 
@@ -236,30 +236,35 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     pointPipelineStates[0] = pointRasterState;
 
     vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
-    auto switchRoot = vsg::Switch::create();
     auto lightStateGroup = vsg::StateGroup::create();
-    auto lightDescriptorSet = vsg::DescriptorSet::create(globalDescriptorSetLayout,
-                                                         vsg::Descriptors{simState.lightValues, layerParams->layerParamsDescriptor});
-    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, lightDescriptorSet);
+    auto lightDescriptorSet
+        = vsg::DescriptorSet::create(globalDescriptorSetLayout,
+                                     vsg::Descriptors{simState.lightValues, layerParams->layerParamsDescriptor});
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+                                                            1, lightDescriptorSet);
     bindDescriptorSet->slot = 2; // XXX Why?
     lightStateGroup->add(bindDescriptorSet);
-    vsg::GraphicsPipelineStates* pipelineStates[] = {&fillPipelineStates, &wirePipelineStates, &pointPipelineStates};
+    // StateSwitch experiments
+    auto rasterStateGroup = vsg::StateGroup::create();
+     rasterSwitch = vsg::StateSwitch::create();
+    vsg::GraphicsPipelineStates* pipelineStates[]
+        = {&fillPipelineStates, &wirePipelineStates, &pointPipelineStates};
     for (int i = 0; i < 3; ++i)
     {
-        auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, shaderStages, *pipelineStates[i]);
+        auto graphicsPipeline
+            = vsg::GraphicsPipeline::create(pipelineLayout, shaderStages, *pipelineStates[i]);
         auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-        auto stateGroup = vsg::StateGroup::create();
-        stateGroup->add(bindGraphicsPipeline);
-        stateGroup->addChild(lightStateGroup);
-        switchRoot->addChild(i == 0, stateGroup);
+        rasterSwitch->add(i == 0, bindGraphicsPipeline);
     }
+    rasterStateGroup->add(rasterSwitch);
+    rasterStateGroup->addChild(lightStateGroup);
     auto plodRoot = vsg::read_cast<vsg::Node>("root.tile", options);
     lightStateGroup->addChild(plodRoot);
-    // assign the EllipsoidModel so that the overall geometry of the database can be used as guide for clipping and navigation.
-    switchRoot->setObject("EllipsoidModel", ellipsoidModel);
-    sceneRootSwitch = switchRoot;
+    // assign the EllipsoidModel so that the overall geometry of the database can be used as guide
+    // for clipping and navigation.
+    rasterStateGroup->setObject("EllipsoidModel", ellipsoidModel);
 
-    return switchRoot;
+    return rasterStateGroup;
  }
 
 vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey, uint32_t tileSize,
@@ -468,7 +473,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
 
 vsg::ref_ptr<TerrainEngineVOE::WireframeInputHandler> TerrainEngineVOE::createWireframeHandler()
 {
-    return WireframeInputHandler::create(sceneRootSwitch);
+    return WireframeInputHandler::create(rasterSwitch);
 }
 
 void TerrainEngineVOE::update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera)

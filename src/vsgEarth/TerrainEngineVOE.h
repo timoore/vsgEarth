@@ -5,13 +5,6 @@
 #include <vsg/all.h>
 #include <osgEarth/VisibleLayer>
 #include <osgEarth/TerrainTileModelFactory>
-#include <vsg/core/Array.h>
-#include <vsg/core/Inherit.h>
-#include <vsg/core/Object.h>
-#include <vsg/core/ref_ptr.h>
-#include <vsg/state/Descriptor.h>
-#include <vsg/state/DescriptorBuffer.h>
-#include <vsg/state/DescriptorImage.h>
 
 // Class responsible for assembling a tile from the osgEarth map. In practice this means that it is
 // responsible for setting up the StateGroup nodes that hold the BindGraphicsPipeline objects that
@@ -124,10 +117,10 @@ namespace osgEarth
     public:
         class WireframeInputHandler : public vsg::Inherit<vsg::Visitor, WireframeInputHandler>
         {
-            vsg::observer_ptr<vsg::Switch> switchNode;
+            vsg::observer_ptr<vsg::StateSwitch> switchNode;
             unsigned state;
         public:
-            WireframeInputHandler(vsg::ref_ptr<vsg::Switch>& switchNode);
+            WireframeInputHandler(vsg::ref_ptr<vsg::StateSwitch>& switchNode);
             void apply(vsg::KeyPressEvent& keyPress) override;
         };
 
@@ -160,7 +153,7 @@ namespace osgEarth
         vsg::ref_ptr<vsg::Sampler> sampler;
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
         vsg::ref_ptr<vsg::Sampler> normalSampler;
-        vsg::ref_ptr<vsg::Switch> sceneRootSwitch;
+        vsg::ref_ptr<vsg::StateSwitch> rasterSwitch;
         bool reverseDepth = true;
         osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
         vsg::ref_ptr<LayerParams> layerParams;
