@@ -69,6 +69,24 @@ int main(int argc, char** argv)
         windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
         terrainEngine->setReverseDepth(true);
 
+        // create the viewer and assign window(s) to it
+        bool multisampling = windowTraits->samples != VK_SAMPLE_COUNT_1_BIT;
+        auto viewer = vsg::Viewer::create();
+        auto window = vsg::Window::create(windowTraits);
+        if (!window)
+        {
+            std::cout << "Could not create windows." << std::endl;
+            return 1;
+        }
+
+        if (multisampling)
+        {
+            // Initializing the device causes VSG to get the supported sample counts from Vulkan and
+            // use the largest one that supports our request.
+            window->getOrCreateDevice();
+            terrainEngine->samples = window->framebufferSamples();
+        }
+
         // load the root tile.
         auto vsg_scene = terrainEngine->createScene(options);
         if (!vsg_scene) return 1;
@@ -79,14 +97,6 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        // create the viewer and assign window(s) to it
-        auto viewer = vsg::Viewer::create();
-        auto window = vsg::Window::create(windowTraits);
-        if (!window)
-        {
-            std::cout << "Could not create windows." << std::endl;
-            return 1;
-        }
 
         viewer->addWindow(window);
 

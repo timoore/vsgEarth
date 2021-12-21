@@ -43,7 +43,8 @@ void VOELayerCallback::onOpacityChanged(class VisibleLayer *layer)
 }
 
 TerrainEngineVOE::TerrainEngineVOE()
-    : tileReader(TileReaderVOE::create()), mipmapLevelsHint(16), numImageLayers(0)
+    : tileReader(TileReaderVOE::create()), mipmapLevelsHint(16), numImageLayers(0),
+      samples(VK_SAMPLE_COUNT_1_BIT)
 {
     // XXX I'm not clear on what would happen if one tries to create an observer_ptr in an
     // unreferenced object, like TerrainEngineVOE is inside this constructor. Therefore, defer
@@ -221,7 +222,7 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         vsg::RasterizationState::create(),
         vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
         vsg::InputAssemblyState::create(),
-        vsg::MultisampleState::create(),
+        vsg::MultisampleState::create(samples),
         vsg::ColorBlendState::create(),
         depthStencilState};
 

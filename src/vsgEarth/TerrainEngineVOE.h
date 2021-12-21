@@ -150,6 +150,7 @@ namespace osgEarth
         SimpleLight simState;
         uint32_t mipmapLevelsHint;
         uint32_t numImageLayers;
+        VkSampleCountFlagBits samples;
     protected:
         void initLayers();
         vsg::ref_ptr<vsg::DescriptorSetLayout> descriptorSetLayout;
