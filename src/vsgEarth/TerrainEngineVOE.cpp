@@ -214,10 +214,6 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     };
     vertexShader->specializationConstants = specializationConstants;
     fragmentShader->specializationConstants = specializationConstants;
-    if (reverseDepth)
-    {
-        depthStencilState->depthCompareOp = VK_COMPARE_OP_GREATER;
-    }
     vsg::GraphicsPipelineStates fillPipelineStates{
         vsg::RasterizationState::create(),
         vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),

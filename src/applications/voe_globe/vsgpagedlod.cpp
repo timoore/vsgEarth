@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 
         bool reverseDepth = false;
         auto windowTraits = vsg::WindowTraits::create();
-        windowTraits->windowTitle = "vsgpagedlod";
+        windowTraits->windowTitle = "voe_globe";
         windowTraits->debugLayer = arguments.read({"--debug", "-d"});
         windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
         if (arguments.read("--IMMEDIATE")) windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
@@ -67,7 +67,6 @@ int main(int argc, char** argv)
         terrainEngine->init(options, arguments);
 
         windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
-        terrainEngine->setReverseDepth(true);
 
         // create the viewer and assign window(s) to it
         bool multisampling = windowTraits->samples != VK_SAMPLE_COUNT_1_BIT;
@@ -194,14 +193,6 @@ int main(int argc, char** argv)
         }
 
         auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
-        // set up for reverseDepth
-        vsg::Node* cgChild = commandGraph->children[0];
-        vsg::RenderGraph* renderGraph = dynamic_cast<vsg::RenderGraph*>(cgChild);
-        if (renderGraph)
-        {
-            renderGraph->clearValues.back().depthStencil = VkClearDepthStencilValue{0.0f, 0};
-        }
-
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         viewer->compile();

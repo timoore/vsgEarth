@@ -132,8 +132,6 @@ namespace osgEarth
         void update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera);
         osgEarth::Map* getMap() { return mapNode->getMap(); }
         const osgEarth::Map* getMap() const { return mapNode->getMap(); }
-        bool getReverseDepth() const { return reverseDepth; }
-        void setReverseDepth(bool val) { reverseDepth = val; }
         vsg::ref_ptr<WireframeInputHandler> createWireframeHandler();
         vsg::ref_ptr<TileReaderVOE> tileReader;
         std::string projection;
@@ -154,7 +152,8 @@ namespace osgEarth
         vsg::ref_ptr<vsg::Sampler> elevationSampler;
         vsg::ref_ptr<vsg::Sampler> normalSampler;
         vsg::ref_ptr<vsg::StateSwitch> rasterSwitch;
-        bool reverseDepth = true;
+        // Not used, except as a demonstration of specialization constants
+        bool reverseDepth = false;
         osg::ref_ptr<osgEarth::TerrainTileModelFactory> modelFactory;
         vsg::ref_ptr<LayerParams> layerParams;
         vsg::ref_ptr<vsg::DescriptorImage> emptyElevationDescImage;
