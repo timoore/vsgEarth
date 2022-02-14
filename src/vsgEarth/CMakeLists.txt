@@ -40,6 +40,7 @@ target_compile_definitions(${LIB_NAME} PRIVATE vsgXchange_FOUND)
 target_link_libraries(${LIB_NAME} vsgXchange::vsgXchange)
 
 SET(CONCAT_COMMAND ${CMAKE_SOURCE_DIR}/CMakeModules/ConcatFiles.cmake)
+# Our GLSL "library" of functions that are made available in vertex and fragment shaders
 SET(GLSL_FILES voeSDK.glsl)
 list_transform_prepend(GLSL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/")
 
@@ -58,4 +59,13 @@ endmacro(make_shader)
 make_shader(${CMAKE_CURRENT_SOURCE_DIR}/reverse_depth.vert ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert)
 make_shader(${CMAKE_CURRENT_SOURCE_DIR}/elevation_main.frag ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag)
 
+set(TARGET_SPIRV
+  ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert.spv
+  ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag.spv
+  )
+
 add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert.spv ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag.spv)
+
+install(FILES ${TARGET_SPIRV}
+  DESTINATION resources/shaders)
+
