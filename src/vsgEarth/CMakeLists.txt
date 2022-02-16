@@ -66,6 +66,8 @@ set(TARGET_SPIRV
 
 add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/elevation.vert.spv ${CMAKE_CURRENT_BINARY_DIR}/elevation.frag.spv)
 
+INCLUDE(ModuleInstall OPTIONAL)
+
 install(FILES ${TARGET_SPIRV}
   DESTINATION resources/shaders)
 
