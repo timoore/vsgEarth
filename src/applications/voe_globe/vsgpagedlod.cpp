@@ -64,9 +64,7 @@ int main(int argc, char** argv)
         while (arguments.read("--distance", poi_distance)) {};
 
         if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
-        terrainEngine->init(options, arguments);
-
-        windowTraits->depthFormat = VK_FORMAT_D32_SFLOAT;
+        terrainEngine->init(options, arguments, windowTraits);
 
         // create the viewer and assign window(s) to it
         bool multisampling = windowTraits->samples != VK_SAMPLE_COUNT_1_BIT;

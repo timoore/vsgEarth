@@ -125,7 +125,8 @@ namespace osgEarth
         };
 
         TerrainEngineVOE();
-        osgEarth::MapNode* init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& arguments);
+        osgEarth::MapNode* init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& arguments,
+                                vsg::ref_ptr<vsg::WindowTraits> traits);
         vsg::ref_ptr<vsg::Node> createScene(vsg::ref_ptr<vsg::Options> options);
         vsg::ref_ptr<vsg::Node> createTile(const osgEarth::TileKey& key,
                                            vsg::ref_ptr<const vsg::Options> options) const;

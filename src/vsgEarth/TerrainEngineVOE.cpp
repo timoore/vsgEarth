@@ -65,12 +65,17 @@ namespace
 }
 
 osgEarth::MapNode*
-TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine)
+TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine,
+                       vsg::ref_ptr<vsg::WindowTraits> traits)
 {
     tileReader->terrainEngine = this;
     // Read the osgEarth arguments
     tileReader->init(commandLine);
-
+    if (traits.valid())
+    {
+        traits->depthFormat = VK_FORMAT_D32_SFLOAT;
+        traits->deviceFeatures->get().fillModeNonSolid = VK_TRUE;
+    }
     osg::ArgumentParser parser = convertArgs(commandLine);
     if (!(mapNode  = osgEarth::MapNode::load(parser)))
     {
