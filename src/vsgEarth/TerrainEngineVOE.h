@@ -61,7 +61,7 @@ namespace osgEarth
             : numLayers(numLayers), layerUIDs(numLayers, 0)
         {
             data = vsg::vec4Array::create(numLayers);
-            layerParamsDescriptor = vsg::DescriptorBuffer::create(data, 1);
+            layerParamsDescriptor = vsg::DescriptorBuffer::create(data, 0);
         }
         int numLayers;
         

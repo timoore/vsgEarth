@@ -94,14 +94,18 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
 
     // set up graphics pipeline
 
-    vsg::DescriptorSetLayoutBindings globalDescriptorBindings{
+    vsg::DescriptorSetLayoutBindings lightlDescriptorBindings{
         // lights
-        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
-        // layer parameters
-        { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } 
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
     };
 
-    auto globalDescriptorSetLayout = vsg::DescriptorSetLayout::create(globalDescriptorBindings);
+    vsg::DescriptorSetLayoutBindings layerDescriptorBindings{
+        // layer parameters
+        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
+        };
+
+    auto lightDescriptorSetLayout = vsg::DescriptorSetLayout::create(lightlDescriptorBindings);
+    auto layerDescriptorSetLayout = vsg::DescriptorSetLayout::create(layerDescriptorBindings);
 
     // Now the visible layers
         LayerVector layers;
@@ -149,7 +153,8 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     };
 
     pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
-                                                                           globalDescriptorSetLayout},
+                                                                           lightDescriptorSetLayout,
+                                                                           layerDescriptorSetLayout},
         pushConstantRanges);
 
     sampler = vsg::Sampler::create();
@@ -234,12 +239,17 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
     auto lightStateGroup = vsg::StateGroup::create();
     auto lightDescriptorSet
-        = vsg::DescriptorSet::create(globalDescriptorSetLayout,
-                                     vsg::Descriptors{simState.lightValues, layerParams->layerParamsDescriptor});
+        = vsg::DescriptorSet::create(lightDescriptorSetLayout,
+                                     vsg::Descriptors{simState.lightValues});
     auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
                                                             1, lightDescriptorSet);
-    bindDescriptorSet->slot = 2; // XXX Why?
     lightStateGroup->add(bindDescriptorSet);
+    auto layerDescriptorSet
+        = vsg::DescriptorSet::create(layerDescriptorSetLayout,
+                                     vsg::Descriptors{layerParams->layerParamsDescriptor});
+    auto bindLayerDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+                                                                 2, layerDescriptorSet);
+    lightStateGroup->add(bindLayerDescriptorSet);
     // StateSwitch experiments
     auto rasterStateGroup = vsg::StateGroup::create();
      rasterSwitch = vsg::StateSwitch::create();
