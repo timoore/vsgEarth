@@ -271,13 +271,13 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     // Put everything under a group node in order to have a place to hang the lights.
     auto sceneGroup = vsg::Group::create();
     sceneGroup->addChild(rasterStateGroup);
-    auto directionalLight = vsg::DirectionalLight::create();
+    directionalLight = vsg::DirectionalLight::create();
     directionalLight->name = "directional";
     directionalLight->color = simState.getColor();
     directionalLight->intensity = 1.0f;
     directionalLight->direction = simState.worldDirection;
     sceneGroup->addChild(directionalLight);
-    auto ambientLight = vsg::AmbientLight::create();
+    ambientLight = vsg::AmbientLight::create();
     ambientLight->name = "ambient";
     ambientLight->color = simState.getAmbient();
     ambientLight->intensity = 1.0f;
@@ -501,5 +501,8 @@ void TerrainEngineVOE::update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg
 {
     // XXX Check if this is still needed
     viewer->waitForFences(1, 50000000);
+    directionalLight->color = simState.getColor();
+    directionalLight->direction = simState.worldDirection;
+    ambientLight->color = simState.getAmbient();
     layerParams->layerParamsDescriptor->copyDataListToBuffers();
 }

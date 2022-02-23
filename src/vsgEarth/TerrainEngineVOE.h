@@ -159,5 +159,7 @@ namespace osgEarth
         vsg::ref_ptr<LayerParams> layerParams;
         vsg::ref_ptr<vsg::DescriptorImage> emptyElevationDescImage;
         vsg::ref_ptr<vsg::DescriptorImage> emptyNormalDescImage;
+        vsg::ref_ptr<vsg::DirectionalLight> directionalLight;
+        vsg::ref_ptr<vsg::AmbientLight> ambientLight;
     };
 }
