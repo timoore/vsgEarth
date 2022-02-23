@@ -32,11 +32,11 @@ layout(set = 0, binding = 3) uniform VOETile {
     TileImageLayer imageLayers[maxImageLayers];
 } voeTile;
 
-layout(set = 1, binding = 0) uniform VOELight {
-    vec4 direction;
-    vec4 color;
-    vec4 ambient;
-} voeLight;
+// VSG light data from ViewDependent state
+layout(set = 1, binding = 0) uniform LightData
+{
+    vec4 values[64];
+} lightData;
 
 // Wasteful, but preserves padding:
 // imageLayerParams[0] - enabled

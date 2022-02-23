@@ -157,10 +157,11 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
         {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls autoaatically provided by the VSG's DispatchTraversal
     };
 
-    pipelineLayout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
-                                                                           lightDescriptorSetLayout,
-                                                                           layerDescriptorSetLayout},
-        pushConstantRanges);
+    pipelineLayout
+        = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{descriptorSetLayout,
+                                                                vsg::ViewDescriptorSetLayout::create(),
+                                                                layerDescriptorSetLayout},
+            pushConstantRanges);
 
     sampler = vsg::Sampler::create();
     sampler->maxLod = mipmapLevelsHint;
@@ -243,12 +244,8 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
 
     vsg::ShaderStages shaderStages{vertexShader, fragmentShader};
     auto lightStateGroup = vsg::StateGroup::create();
-    auto lightDescriptorSet
-        = vsg::DescriptorSet::create(lightDescriptorSetLayout,
-                                     vsg::Descriptors{simState.lightValues});
-    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
-                                                            1, lightDescriptorSet);
-    lightStateGroup->add(bindDescriptorSet);
+    lightStateGroup->add(vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
+                                                             1));
     auto layerDescriptorSet
         = vsg::DescriptorSet::create(layerDescriptorSetLayout,
                                      vsg::Descriptors{layerParams->layerParamsDescriptor});
@@ -271,11 +268,24 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
     rasterStateGroup->addChild(lightStateGroup);
     auto plodRoot = vsg::read_cast<vsg::Node>("root.tile", options);
     lightStateGroup->addChild(plodRoot);
+    // Put everything under a group node in order to have a place to hang the lights.
+    auto sceneGroup = vsg::Group::create();
+    sceneGroup->addChild(rasterStateGroup);
+    auto directionalLight = vsg::DirectionalLight::create();
+    directionalLight->name = "directional";
+    directionalLight->color = simState.getColor();
+    directionalLight->intensity = 1.0f;
+    directionalLight->direction = simState.worldDirection;
+    sceneGroup->addChild(directionalLight);
+    auto ambientLight = vsg::AmbientLight::create();
+    ambientLight->name = "ambient";
+    ambientLight->color = simState.getAmbient();
+    ambientLight->intensity = 1.0f;
+    sceneGroup->addChild(ambientLight);
     // assign the EllipsoidModel so that the overall geometry of the database can be used as guide
     // for clipping and navigation.
-    rasterStateGroup->setObject("EllipsoidModel", ellipsoidModel);
-
-    return rasterStateGroup;
+    sceneGroup->setObject("EllipsoidModel", ellipsoidModel);
+    return sceneGroup;
  }
 
 vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey, uint32_t tileSize,
@@ -489,10 +499,7 @@ vsg::ref_ptr<TerrainEngineVOE::WireframeInputHandler> TerrainEngineVOE::createWi
 
 void TerrainEngineVOE::update(vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera)
 {
-    vsg::dmat4 viewMatrix = camera->viewMatrix->transform();
-    simState.setEyeDirection(viewMatrix);
     // XXX Check if this is still needed
     viewer->waitForFences(1, 50000000);
-    simState.lightValues->copyDataListToBuffers();
     layerParams->layerParamsDescriptor->copyDataListToBuffers();
 }

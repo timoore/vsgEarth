@@ -190,7 +190,7 @@ int main(int argc, char** argv)
             std::cout << "No. of tiles loaed " << loadPagedLOD.numTiles << " in " << time << "ms." << std::endl;
         }
 
-        auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
+        auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene, VK_SUBPASS_CONTENTS_INLINE, false);
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         viewer->compile();
