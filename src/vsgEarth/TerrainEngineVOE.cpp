@@ -374,12 +374,12 @@ vsg::ref_ptr<vsg::Commands> createTileGeometry(const osgEarth::TileKey& tileKey,
 struct ImageLayerTileData
 {
     ImageLayerTileData(vsg::ref_ptr<vsg::ImageInfo> info,
-                       osg::ref_ptr<osg::RefMatrixf> refMatrix,
+                       osg::Matrixf& texMatrix,
                        UID uid)
-        : info(info), refMatrix(refMatrix), uid(uid)
+        : info(info), texMatrix(texMatrix), uid(uid)
     {}
     vsg::ref_ptr<vsg::ImageInfo> info;
-    osg::ref_ptr<osg::RefMatrixf> refMatrix;
+    osg::Matrixf& texMatrix;
     UID uid;
 };
 
@@ -392,23 +392,20 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     std::vector<ImageLayerTileData> tileData;
     uint8_t imageOrigin = vsg::BOTTOM_LEFT; // XXX huge hack; should probably just decide on
     // OpenGL order
-    for (auto& colorLayerModel : tileModel->colorLayers())
+    for (auto& colorLayer : tileModel->colorLayers())
     {
-        osg::Texture* texture = nullptr;
-        osg::RefMatrixf* textureMatrix = nullptr;
-        if (colorLayerModel.valid())
+        auto& layer = colorLayer.layer();
+        if (!layer.valid())
+            continue;
+        ImageLayer* imageLayer = dynamic_cast<ImageLayer*>(layer.get());
+        if (imageLayer && colorLayer.texture()->osgTexture().valid())
         {
-            osgEarth::TerrainTileImageLayerModel* imageLayerModel
-                = dynamic_cast<osgEarth::TerrainTileImageLayerModel*>(colorLayerModel.get());
-            if (imageLayerModel && imageLayerModel->getTexture())
-            {
-                texture = imageLayerModel->getTexture();
-                textureMatrix = imageLayerModel->getMatrix(); // XXX do something with this
-                auto data = convertToVsg(texture->getImage(0), true);
-                imageOrigin = data->getLayout().origin;
-                tileData.push_back(ImageLayerTileData(vsg::ImageInfo::create(sampler, data), textureMatrix,
-                                                      imageLayerModel->getLayer()->getUID()));
-            }
+            auto texture = colorLayer.texture()->osgTexture().get();
+            osg::Matrixf& textureMatrix = colorLayer.matrix();
+            auto data = convertToVsg(texture->getImage(0), true);
+            imageOrigin = data->getLayout().origin;
+            tileData.push_back(ImageLayerTileData(vsg::ImageInfo::create(sampler, data), textureMatrix,
+                                                  imageLayer->getUID()));
         }
     }
     if (tileData.empty())
@@ -431,12 +428,12 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     vsg::ref_ptr<vsg::DescriptorImage> normalTexDescriptor = emptyNormalDescImage;
     const float bias = .5;
     float tileWidth = 1.0f;
-    if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getTexture())
+    if (tileModel->elevation().texture())
     {
-        elevationTexture = static_cast<osgEarth::ElevationTexture*>(tileModel->elevationModel()->getTexture());
-        elevationTexture->generateNormalMap(mapNode->getMap(), nullptr, nullptr);
-        auto elevData = convertToVsg(elevationTexture->getImage());
-        auto normalData = convertToVsg(elevationTexture->getNormalMapTexture()->getImage());
+        auto osgElevationTexture = tileModel->elevation().texture()->osgTexture();
+        auto elevData = convertToVsg(osgElevationTexture->getImage(0));
+        auto osgNormalTexture = tileModel->normalMap().texture()->osgTexture();
+        auto normalData = convertToVsg(osgNormalTexture->getImage(0));
         elevationTexDescriptor = vsg::DescriptorImage::create(elevationSampler, elevData, 1, 0,
                                                               VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         normalTexDescriptor = vsg::DescriptorImage::create(normalSampler, normalData, 2, 0,
@@ -447,7 +444,7 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     for (int i = 0; i < numImageLayers; ++i)
     {
         UID uid = tileData[i].uid;
-        tileParams.imageTexMatrix(i) = *toVsg(static_cast<osg::Matrixf*>(tileData[i].refMatrix.get()));
+        tileParams.imageTexMatrix(i) = toVsg(tileData[i].texMatrix);
         auto layerItr = std::find(layerParams->layerUIDs.begin(), layerParams->layerUIDs.end(), uid);
         if (layerItr != layerParams->layerUIDs.end())
         {
@@ -458,13 +455,11 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
             tileParams.layerIndex(i) = 0; // XXX Index into layerParams
         }
     }
-    // XXX Not sure that the elevation model ever has its own matrix
-    if (tileModel->elevationModel().valid() && tileModel->elevationModel()->getMatrix())
+    if (tileModel->elevation().texture())
     {
         tileParams.elevationTexMatrix()
-            = *toVsg(static_cast<osg::Matrixf*>(tileModel->elevationModel()->getMatrix()));
+            = toVsg((tileModel->elevation().matrix()));
     }
-    else
     {
         tileParams.elevationTexMatrix() = vsg::mat4();
     }
