@@ -19,8 +19,7 @@ namespace osgEarth
     class VoeLOD : public vsg::Inherit<vsg::PagedLOD, VoeLOD>
     {
     public:
-        VoeLOD(vsg::Allocator* allocator = nullptr)
-            : Inherit(allocator)
+        VoeLOD()
         {}
         void accept(vsg::RecordTraversal& visitor) const override;
     };
