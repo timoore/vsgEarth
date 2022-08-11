@@ -1,5 +1,7 @@
 #include "VoeImageUtils.h"
 
+#include <osg2vsg/convert.h>
+
 #include <osg/Texture>
 
 /* <editor-fold desc="MIT License">
@@ -15,15 +17,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 // vsgXchange internals
-
-namespace osg2vsg
-{
-    VkFormat convertGLImageFormatToVulkan(GLenum dataType, GLenum pixelFormat);
-
-    osg::ref_ptr<osg::Image> formatImageToRGBA(const osg::Image* image);
-
-    vsg::ref_ptr<vsg::Data> convertToVsg(const osg::Image* image, bool mapRGBtoRGBAHint);
-}
 
 namespace osgEarth
 {
@@ -69,24 +62,38 @@ namespace osgEarth
         return vsg::Array2D<vsg::ubvec4>::create(image->s(), image->t(), destData, layout);
     }
 
+    vsg::ref_ptr<vsg::Data> convertImage(const osg::Image* image, bool mapRGBtoRGBAHint)
+    {
+        if (mapRGBtoRGBAHint)
+        {
+            return osg2vsg::convert(*image);
+        }
+        else
+        {
+            vsg::ref_ptr<vsg::Options> options = vsg::Options::create();
+            options->mapRGBtoRGBAHint = false;
+            return osg2vsg::convert(*image, options);
+        }
+    }
+
     vsg::ref_ptr<vsg::Data> convertToVsg(const osg::Image* image, bool mapRGBtoRGBAHint)
     {
         if (!image || image->isCompressed()
             || (image->getPixelFormat() != GL_RG && image->getPixelFormat() != GL_RGB))
-            return osg2vsg::convertToVsg(image, mapRGBtoRGBAHint);
+            return convertImage(image, mapRGBtoRGBAHint);
 
         if (image->getPixelFormat() == GL_RGB)
         {
             if (mapRGBtoRGBAHint)
                 return createExpandedData(image);
             else
-                return osg2vsg::convertToVsg(image, mapRGBtoRGBAHint);
+                return convertImage(image, mapRGBtoRGBAHint);
         }
 
         osg::Image* new_image = const_cast<osg::Image*>(image);
 
-        // we want to pass ownership of the new_image data onto th vsg_image so reset the allocation
-        // mode on the image to prevent deletetion. 
+        // we want to pass ownership of the new_image data onto the vsg_image so reset the allocation
+        // mode on the image to prevent deletion. 
         new_image->setAllocationMode(osg::Image::NO_DELETE);
 
         vsg::ref_ptr<vsg::Data> vsg_data;
