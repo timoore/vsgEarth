@@ -1,37 +1,36 @@
-IF(OSGEARTH_BUILD_SHARED_LIBS)
+IF(VSGEARTH_BUILD_SHARED_LIBS)
     ADD_DEFINITIONS(-DVSGEARTH_LIBRARY)
 ELSE()
     ADD_DEFINITIONS(-DVSGEARTH_LIBRARY_STATIC)
 ENDIF()
 
-set(SOURCES
-    TerrainEngineVOE.h
-    TerrainEngineVOE.cpp
-    TileReaderVOE.h
-    TileReaderVOE.cpp
-    VoeLOD.cpp
-    VoeLOD.h
-    VoeSim.cpp
-    VoeSim.h
-    VoeImageUtils.cpp
-    VoeImageUtils.h
-)
-
 set(LIB_NAME vsgEarth)
 
-set(TARGET_SRC ${SOURCES})
-
 set(LIB_PUBLIC_HEADERS
+  Export.h
   TerrainEngineVOE.h
+  TileReaderVOE.h
   VoeSim.h)
 
-set(TARGET_H ${LIB_PUBLIC_HEADERS})
+set(SOURCES
+  ${LIB_PUBLIC_HEADERS}
+  TerrainEngineVOE.cpp
+  TileReaderVOE.cpp
+  VoeLOD.cpp
+  VoeLOD.h
+  VoeSim.cpp
+  VoeImageUtils.cpp
+  VoeImageUtils.h
+  )
 
 ADD_LIBRARY(
     ${LIB_NAME}
-    ${OSGEARTH_DYNAMIC_OR_STATIC}
     ${LIB_PUBLIC_HEADERS}
-    ${TARGET_SRC}
+    ${SOURCES}
+)
+
+set_target_properties(${LIB_NAME} PROPERTIES
+  PUBLIC_HEADER "${LIB_PUBLIC_HEADERS}"
 )
 
 target_link_libraries(${LIB_NAME} vsg::vsg osgEarth ${OpenSceneGraph_LIBRARIES})
@@ -69,5 +68,11 @@ add_custom_target(voe_shaders ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/elevation.
 INCLUDE(ModuleInstall OPTIONAL)
 
 install(FILES ${TARGET_SPIRV}
-  DESTINATION resources/shaders)
+  DESTINATION ${VSGEARTH_DATA_DIR})
 
+install(TARGETS vsgEarth EXPORT vsgEarthTargets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME}"
+  )
