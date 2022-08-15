@@ -9,6 +9,7 @@
 #include <vsg/core/Value.h>
 
 #include "VoeSim.h"
+#include "Export.h"
 
 // Use osgEarth as a tile source
 
@@ -16,7 +17,7 @@ namespace osgEarth
 {
     class TerrainEngineVOE;
 
-    class TileReaderVOE : public vsg::Inherit<vsg::ReaderWriter, TileReaderVOE>
+    class VSGEARTH_EXPORT TileReaderVOE : public vsg::Inherit<vsg::ReaderWriter, TileReaderVOE>
     {
         friend class TerrainEngineVOE;
     public:

@@ -4,6 +4,8 @@
 // e.g. lighting.
 #include <vsg/all.h>
 
+#include "Export.h"
+
 namespace osgEarth
 {
     // The data structure passed to shaders. These values are mostly
@@ -21,7 +23,7 @@ namespace osgEarth
     {
     };
     
-    class SimpleLight
+    class VSGEARTH_EXPORT SimpleLight
     {
     public:
         vsg::ref_ptr<vsg::DescriptorBuffer> lightValues;
