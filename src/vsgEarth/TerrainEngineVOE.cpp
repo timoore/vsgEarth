@@ -1,5 +1,7 @@
 #include "TerrainEngineVOE.h"
 #include "VoeImageUtils.h"
+#include "vsgEarth/Config.h"
+
 #include "osgEarth/Elevation"
 #include "osgEarth/ImageLayer"
 
@@ -194,7 +196,8 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
                                                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     // set up search paths to SPIRV shaders and textures
     vsg::Paths searchPaths = vsg::getEnvPaths("VSG_FILE_PATH");
-
+    auto dataDirPath = vsg::Path(VSGEARTH_FULL_DATA_DIR);
+    searchPaths.push_back(dataDirPath);
     // load shaders
         vsg::ref_ptr<vsg::ShaderStage> vertexShader = vsg::ShaderStage::read(VK_SHADER_STAGE_VERTEX_BIT, "main", vsg::findFile("elevation.vert.spv", searchPaths));
     vsg::ref_ptr<vsg::ShaderStage> fragmentShader = vsg::ShaderStage::read(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::findFile("elevation.frag.spv", searchPaths));
