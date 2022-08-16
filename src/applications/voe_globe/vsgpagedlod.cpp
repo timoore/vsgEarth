@@ -13,6 +13,30 @@
 
 using namespace osgEarth;
 
+void usage(const char* name)
+{
+    std::cout
+        << "\nUsage: " << name << " <options> file.earth\n\n"
+        << "where options include:\n"
+        << "--debug|-d\t load Vulkan debug layer\n"
+        << "--api|-a\t load Vulkan dump layer\n"
+        << "--IMMEDIATE\t set swapchain present mode to VK_PRESENT_MODE_IMMEDIATE_KHR\n"
+        << "--fullscreen|--fs\t fullscreen window\n"
+        << "--window|-w width height\t set window dimensions\n"
+        << "--screen number\n"
+        << "--display number\n"
+        << "--samples n\t enable multisamples with n samples\n"
+        << "-f numFrames\t run for numFrames and exit\n"
+        << "--load-levels levels\t preload levels\n"
+        << "--hmh height\t horizon mountain height for ellipsoid perspective viewing\n"
+        << "--disble-EllipsoidPerspective|--dep\tdisable ellipsoid perspective\n"
+        << "--file-cache path\t VSG file cache\n"
+        << "--osgearth|-e\t osgEarth-style mouse buttons\n"
+        << "--ot numThreads\t number of operation threads\n"
+        << "--poi lat lon\t coordinates of initial point of interest\n"
+        << "--distance dist\t distance from point of interest\n";
+}
+
 int main(int argc, char** argv)
 {
     try
@@ -20,6 +44,11 @@ int main(int argc, char** argv)
         // set up defaults and read command line arguments to override them
         vsg::CommandLine arguments(&argc, argv);
 
+        if (arguments.read({"--help", "-h", "-?"}))
+        {
+            usage(argv[0]);
+            return 0;
+        }
         // set up vsg::Options to pass in filepaths and ReaderWriter's and other IO realted options to use when reading and writing files.
         auto options = vsg::Options::create();
         options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
@@ -32,7 +61,6 @@ int main(int argc, char** argv)
 
         arguments.read(options);
 
-        bool reverseDepth = false;
         auto windowTraits = vsg::WindowTraits::create();
         windowTraits->windowTitle = "voe_globe";
         windowTraits->debugLayer = arguments.read({"--debug", "-d"});
@@ -43,13 +71,10 @@ int main(int argc, char** argv)
         arguments.read("--screen", windowTraits->screenNum);
         arguments.read("--display", windowTraits->display);
         arguments.read("--samples", windowTraits->samples);
-        auto outputFilename = arguments.value(std::string(), "-o");
         auto numFrames = arguments.value(-1, "-f");
         auto loadLevels = arguments.value(0, "--load-levels");
         auto horizonMountainHeight = arguments.value(0.0, "--hmh");
-        auto mipmapLevelsHint = arguments.value<uint32_t>(0, {"--mipmapLevels", "--mml"});
         bool useEllipsoidPerspective = !arguments.read({"--disble-EllipsoidPerspective", "--dep"});
-        if (arguments.read("--rgb")) options->mapRGBtoRGBAHint = false;
         arguments.read("--file-cache", options->fileCache);
         bool osgEarthStyleMouseButtons = arguments.read({"--osgearth","-e"});
 
@@ -87,13 +112,6 @@ int main(int argc, char** argv)
         // load the root tile.
         auto vsg_scene = terrainEngine->createScene(options);
         if (!vsg_scene) return 1;
-
-        if (!outputFilename.empty())
-        {
-            vsg::write(vsg_scene, outputFilename);
-            return 0;
-        }
-
 
         viewer->addWindow(window);
 
