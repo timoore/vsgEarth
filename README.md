@@ -1,4 +1,4 @@
-vsgEarth - osgEarth on the VSG Vulkan Scene Graph
+## vsgEarth - osgEarth on the VSG Vulkan Scene Graph
 
 vsgEarth is a prototype of
 ![osgEarth](https://github.com/gwaldron/osgearth) that renders using
