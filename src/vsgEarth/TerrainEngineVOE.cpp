@@ -59,11 +59,6 @@ namespace
     {
         return osg::ArgumentParser(&commandLine.argc(), commandLine.argv());
     }
-
-    vsg::dvec3 computeLatitudeLongitudeAltitude(double  lat, double lon, double alt)
-    {
-        return vsg::dvec3(lat, lon, alt);
-    }
 }
 
 osgEarth::MapNode*
@@ -411,7 +406,6 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
     auto scenegraph = vsg::StateGroup::create();
     osgEarth::GeoPoint centroid = key.getExtent().getCentroid();
     auto localToWorld = ellipsoidModel->computeLocalToWorldTransform(vsg::dvec3(centroid.y(), centroid.x(), 0.0));
-    auto worldToLocal = vsg::inverse(localToWorld);
 
     // create texture image and associated DescriptorSets and binding
     vsg::ImageInfoList imageTextures(tileData.size());
