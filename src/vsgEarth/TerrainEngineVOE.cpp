@@ -400,7 +400,10 @@ TerrainEngineVOE::createTile(const osgEarth::TileKey& key, vsg::ref_ptr<const vs
                                                   imageLayer->getUID()));
         }
     }
-    if (tileData.empty())
+    // XXX Should do something smarter as we exhaust some of the image layers. Go back to the
+    // modelFactory? On the other hand, layers like debug layer are effectively infinite, so we do
+    // need a scheme for using lower resolution data to fill in for that which is unavailable.
+    if (tileData.size() < numImageLayers)
         return {};
     // create StateGroup to bind any texture state
     auto scenegraph = vsg::StateGroup::create();
