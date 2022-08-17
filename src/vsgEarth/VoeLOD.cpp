@@ -34,8 +34,6 @@ void VoeLOD::accept(vsg::RecordTraversal& visitor) const
     // implemented in the RecordTraversal, yuck.
     auto &sphere = bound;
 
-    auto frameCount = visitor.getFrameStamp()->frameCount;
-
     // check if lod bounding sphere is in view frustum.
     if (!visitor.getState()->intersect(sphere))
     {

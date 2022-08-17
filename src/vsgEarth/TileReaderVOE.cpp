@@ -85,7 +85,6 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_root(vsg::ref_ptr<const vsg::Optio
         }
     }
 
-    uint32_t maxLevel = 20;
     uint32_t estimatedNumOfTilesBelow = 0;
     uint32_t maxNumTilesBelow = 40000;
 
@@ -188,7 +187,7 @@ vsg::ref_ptr<vsg::Object> TileReaderVOE::read_subtile(const osgEarth::TileKey& k
     return group;
 }
 
-void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg::Options> options)
+void TileReaderVOE::init(vsg::CommandLine& commandLine,  vsg::ref_ptr<const vsg::Options>)
 {
     vsg::ref_ptr<TerrainEngineVOE> te(terrainEngine);
     if (!te)

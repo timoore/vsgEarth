@@ -67,7 +67,7 @@ namespace
 }
 
 osgEarth::MapNode*
-TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options> options, vsg::CommandLine& commandLine,
+TerrainEngineVOE::init(vsg::ref_ptr<vsg::Options>, vsg::CommandLine& commandLine,
                        vsg::ref_ptr<vsg::WindowTraits> traits)
 {
     tileReader->terrainEngine = this;
@@ -101,17 +101,11 @@ vsg::ref_ptr<vsg::Node> TerrainEngineVOE::createScene(vsg::ref_ptr<vsg::Options>
 
     // set up graphics pipeline
 
-    vsg::DescriptorSetLayoutBindings lightlDescriptorBindings{
-        // lights
-        { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
-    };
-
     vsg::DescriptorSetLayoutBindings layerDescriptorBindings{
         // layer parameters
         { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr }
         };
 
-    auto lightDescriptorSetLayout = vsg::DescriptorSetLayout::create(lightlDescriptorBindings);
     auto layerDescriptorSetLayout = vsg::DescriptorSetLayout::create(layerDescriptorBindings);
 
     // Now the visible layers

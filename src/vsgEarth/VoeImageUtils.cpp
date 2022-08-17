@@ -46,9 +46,9 @@ namespace osgEarth
         const unsigned char* sourceData = image->data();
         vsg::ubvec4* destData = new vsg::ubvec4[sourceElements];
         const unsigned char* srcPtr = sourceData;
-        for (int i = 0; i < sourceElements; ++i)
+        for (unsigned i = 0; i < sourceElements; ++i)
         {
-            for (int j = 0; j < 3; ++j)
+            for (unsigned j = 0; j < 3; ++j)
                 destData[i][j] = *srcPtr++;
             destData[i][3] = 255;
         }
